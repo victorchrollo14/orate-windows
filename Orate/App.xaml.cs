@@ -72,6 +72,8 @@ public partial class App : Application
         _overlay = new OverlayWindow();
         _overlay.ShowOverlay();
 
+        AudioRecorder.LogFlacAvailability(); // up front: if 0 codecs, that's the whole problem
+
         _recorder = new AudioRecorder();
         _recorder.OnLevel = level => _overlay.UpdateLevel(level);
 

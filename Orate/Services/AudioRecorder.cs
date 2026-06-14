@@ -21,17 +21,43 @@ public sealed class AudioRecorder
 
     private WaveInEvent? _waveIn;
     private MemoryStream? _pcmBuffer;
+    private int _dataCallbacks;
 
     /// <summary>Called with a normalized audio level (0…1) at roughly 30 fps.</summary>
     public Action<double>? OnLevel;
 
     public bool IsRecording => _waveIn != null;
 
+    /// <summary>
+    /// Logs whether the Windows Media Foundation FLAC encoder is present, without needing a
+    /// recording. Call once at startup — if this logs 0 codecs, that's the whole problem
+    /// (typical on Windows N / Server editions that lack the Media Feature Pack).
+    /// </summary>
+    public static void LogFlacAvailability()
+    {
+        try
+        {
+            MediaFoundationApi.Startup();
+            var candidates = MediaFoundationEncoder.GetOutputMediaTypes(MFAudioFormat_FLAC);
+            Logger.Log($"AudioRecorder: MF FLAC encoder check — {candidates.Length} output media type(s) available.");
+            foreach (var mt in candidates)
+            {
+                if (TryGet(mt, out int sr, out int ch))
+                    Logger.Log($"  FLAC candidate: {sr} Hz, {ch} ch");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Log("AudioRecorder: MF FLAC availability check threw", ex);
+        }
+    }
+
     public void StartRecording()
     {
         if (_waveIn != null) return;
 
         _pcmBuffer = new MemoryStream();
+        _dataCallbacks = 0;
         _waveIn = new WaveInEvent
         {
             WaveFormat = RecordingFormat,
@@ -43,6 +69,7 @@ public sealed class AudioRecorder
         try
         {
             _waveIn.StartRecording();
+            Logger.Log("AudioRecorder: recording started (16 kHz / 16-bit / mono).");
         }
         catch (Exception ex)
         {
@@ -65,6 +92,8 @@ public sealed class AudioRecorder
         _pcmBuffer?.Dispose();
         _pcmBuffer = null;
 
+        Logger.Log($"AudioRecorder: stopped — {_dataCallbacks} data callbacks, {pcm?.Length ?? 0} PCM bytes captured.");
+
         if (pcm == null || pcm.Length == 0)
         {
             Logger.Log("AudioRecorder: no PCM captured.");
@@ -74,7 +103,7 @@ public sealed class AudioRecorder
         try
         {
             var flac = EncodeToFlac(pcm, RecordingFormat);
-            Logger.Log($"AudioRecorder: captured {pcm.Length} PCM bytes -> {flac.Length} FLAC bytes.");
+            Logger.Log($"AudioRecorder: FLAC encode OK — {pcm.Length} PCM bytes -> {flac.Length} FLAC bytes.");
             return flac;
         }
         catch (Exception ex)
@@ -86,6 +115,7 @@ public sealed class AudioRecorder
 
     private void OnDataAvailable(object? sender, WaveInEventArgs e)
     {
+        _dataCallbacks++;
         _pcmBuffer?.Write(e.Buffer, 0, e.BytesRecorded);
 
         // Compute RMS over the 16-bit samples, convert to dB, normalize -40…0 dB -> 0…1
@@ -121,10 +151,12 @@ public sealed class AudioRecorder
 
     private static byte[] EncodeToFlac(byte[] pcm, WaveFormat format)
     {
+        Logger.Log("AudioRecorder: FLAC encode — calling MediaFoundationApi.Startup().");
         MediaFoundationApi.Startup();
 
         var mediaType = SelectFlacMediaType(format)
             ?? throw new InvalidOperationException("No Media Foundation FLAC encoder available on this system.");
+        Logger.Log("AudioRecorder: FLAC encode — output media type selected; encoding…");
 
         var tmp = Path.Combine(Path.GetTempPath(), $"orate_{Guid.NewGuid():N}.flac");
         try
@@ -145,6 +177,7 @@ public sealed class AudioRecorder
     private static MediaType? SelectFlacMediaType(WaveFormat format)
     {
         var candidates = MediaFoundationEncoder.GetOutputMediaTypes(MFAudioFormat_FLAC);
+        Logger.Log($"AudioRecorder: FLAC encode — {candidates.Length} candidate output media type(s).");
         if (candidates.Length == 0) return null;
 
         // Prefer an output type that matches our sample rate and channel count.

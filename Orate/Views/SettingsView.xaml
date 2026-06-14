@@ -50,6 +50,13 @@
                      VerticalScrollBarVisibility="Auto"
                      LostFocus="OnInstructionsChanged" />
 
+            <!-- Diagnostics -->
+            <TextBlock Text="Diagnostics" FontWeight="SemiBold" Margin="0,28,0,6" />
+            <StackPanel Orientation="Horizontal">
+                <Button Content="Open Log" Padding="14,8" Click="OnOpenLog" />
+                <Button Content="Open Log Folder" Padding="14,8" Margin="10,0,0,0" Click="OnOpenLogFolder" />
+            </StackPanel>
+
         </StackPanel>
     </ScrollViewer>
 </UserControl>

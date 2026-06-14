@@ -79,6 +79,7 @@ public static class TranscriptionService
     {
         var provider = SettingsStore.Current.Provider;
         var apiKey = ApiKey(provider);
+        Logger.Log($"Transcribe: provider={provider}, apiKey={(string.IsNullOrEmpty(apiKey) ? "MISSING" : $"present ({apiKey.Length} chars)")}, audio={audioData.Length} bytes.");
         if (string.IsNullOrEmpty(apiKey))
         {
             throw new TranscriptionException("No API key configured. Open Settings to add your API key.");
@@ -110,6 +111,7 @@ public static class TranscriptionService
         sw.Stop();
 
         var body = await response.Content.ReadAsStringAsync(ct);
+        Logger.Log($"Transcribe (OrateCloud): HTTP {(int)response.StatusCode}, {body.Length} chars in {sw.ElapsedMilliseconds}ms.");
         using var doc = JsonDocument.Parse(body);
         var root = doc.RootElement;
 
@@ -161,6 +163,7 @@ public static class TranscriptionService
         sw.Stop();
 
         var body = await response.Content.ReadAsStringAsync(ct);
+        Logger.Log($"Transcribe ({provider}): HTTP {(int)response.StatusCode}, {body.Length} chars in {sw.ElapsedMilliseconds}ms.");
         if (!response.IsSuccessStatusCode)
         {
             throw new TranscriptionException($"API error ({(int)response.StatusCode}): {body}");

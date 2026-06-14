@@ -101,4 +101,37 @@ public partial class SettingsView : UserControl
         SettingsStore.Current.CustomInstructions = CustomInstructions.Text;
         SettingsStore.Save();
     }
+
+    private void OnOpenLog(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (System.IO.File.Exists(Logger.Path_))
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("notepad.exe", $"\"{Logger.Path_}\"") { UseShellExecute = false });
+            }
+            else
+            {
+                KeyStatus.Text = "No log file yet";
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Log("Failed to open log", ex);
+        }
+    }
+
+    private void OnOpenLogFolder(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var dir = System.IO.Path.GetDirectoryName(Logger.Path_)!;
+            System.IO.Directory.CreateDirectory(dir);
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(dir) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            Logger.Log("Failed to open log folder", ex);
+        }
+    }
 }
