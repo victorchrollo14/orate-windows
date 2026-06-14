@@ -7,6 +7,7 @@ namespace Orate.Views;
 public partial class SettingsView : UserControl
 {
     private bool _loading;
+    private bool _editingKey; // true while the user is entering/replacing a key
 
     public SettingsView()
     {
@@ -35,16 +36,28 @@ public partial class SettingsView : UserControl
         CustomInstructions.Text = s.CustomInstructions;
         VertexPanel.Visibility = s.Provider == AIProvider.VertexAI ? Visibility.Visible : Visibility.Collapsed;
 
-        LoadKeyForProvider();
+        _editingKey = false;
+        RefreshKeyUi();
         _loading = false;
     }
 
-    private void LoadKeyForProvider()
+    /// <summary>Shows the "saved" chip when a key exists, otherwise the entry field. Never
+    /// displays the stored key itself.</summary>
+    private void RefreshKeyUi()
     {
-        var key = CredentialStore.Read(CredentialKey(SelectedProvider)) ?? "";
-        KeyBox.Password = key;
-        KeyBoxPlain.Text = key;
-        KeyStatus.Text = string.IsNullOrEmpty(key) ? "No key saved" : "Key saved";
+        bool hasKey = !string.IsNullOrEmpty(CredentialStore.Read(CredentialKey(SelectedProvider)));
+
+        if (hasKey && !_editingKey)
+        {
+            KeySavedPanel.Visibility = Visibility.Visible;
+            KeyEditPanel.Visibility = Visibility.Collapsed;
+        }
+        else
+        {
+            KeySavedPanel.Visibility = Visibility.Collapsed;
+            KeyEditPanel.Visibility = Visibility.Visible;
+            CancelKeyButton.Visibility = hasKey ? Visibility.Visible : Visibility.Collapsed;
+        }
     }
 
     private void OnProviderChanged(object sender, SelectionChangedEventArgs e)
@@ -56,7 +69,27 @@ public partial class SettingsView : UserControl
         SettingsStore.Save();
 
         VertexPanel.Visibility = provider == AIProvider.VertexAI ? Visibility.Visible : Visibility.Collapsed;
-        LoadKeyForProvider();
+        _editingKey = false;
+        KeyBox.Password = "";
+        KeyBoxPlain.Text = "";
+        KeyStatus.Text = "";
+        RefreshKeyUi();
+    }
+
+    private void OnChangeKey(object sender, RoutedEventArgs e)
+    {
+        _editingKey = true;
+        KeyBox.Password = "";
+        KeyBoxPlain.Text = "";
+        KeyStatus.Text = "";
+        RefreshKeyUi();
+        KeyBox.Focus();
+    }
+
+    private void OnCancelKey(object sender, RoutedEventArgs e)
+    {
+        _editingKey = false;
+        RefreshKeyUi();
     }
 
     private void OnToggleShowKey(object sender, RoutedEventArgs e)
@@ -82,11 +115,17 @@ public partial class SettingsView : UserControl
         if (string.IsNullOrEmpty(key))
         {
             CredentialStore.Delete(CredentialKey(SelectedProvider));
-            KeyStatus.Text = "Key cleared";
+            KeyStatus.Text = "Enter a key to save";
+            _editingKey = false;
+            RefreshKeyUi();
             return;
         }
         CredentialStore.Save(CredentialKey(SelectedProvider), key);
-        KeyStatus.Text = "Key saved";
+        KeyBox.Password = "";
+        KeyBoxPlain.Text = "";
+        ShowKey.IsChecked = false;
+        _editingKey = false;
+        RefreshKeyUi();
     }
 
     private void OnVertexChanged(object sender, RoutedEventArgs e)

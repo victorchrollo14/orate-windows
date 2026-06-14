@@ -18,15 +18,36 @@
 
             <!-- API key -->
             <TextBlock Text="API Key" FontWeight="SemiBold" Margin="0,24,0,6" />
-            <StackPanel Orientation="Horizontal">
-                <PasswordBox x:Name="KeyBox" Width="360" Padding="6" />
-                <TextBox x:Name="KeyBoxPlain" Width="360" Padding="6" Visibility="Collapsed" />
-                <CheckBox x:Name="ShowKey" Content="Show" VerticalAlignment="Center"
-                          Margin="10,0,0,0" Checked="OnToggleShowKey" Unchecked="OnToggleShowKey" />
+
+            <!-- Saved state: key is hidden; offer to change it -->
+            <StackPanel x:Name="KeySavedPanel" Orientation="Horizontal" Visibility="Collapsed">
+                <Border Background="{StaticResource CardBrush}" BorderBrush="{StaticResource CardBorderBrush}"
+                        BorderThickness="1" CornerRadius="8" Padding="14,9">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="&#xE73E;" FontFamily="Segoe MDL2 Assets"
+                                   Foreground="{StaticResource AccentBrush}" FontSize="13"
+                                   VerticalAlignment="Center" Margin="0,0,8,0" />
+                        <TextBlock Text="API key saved" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+                <Button Content="Change Key" Margin="10,0,0,0" Click="OnChangeKey" />
             </StackPanel>
-            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                <Button Content="Save Key" Padding="16,8" Click="OnSaveKey" Style="{StaticResource AccentButton}" />
-                <TextBlock x:Name="KeyStatus" VerticalAlignment="Center" Margin="12,0,0,0" Foreground="#888" />
+
+            <!-- Edit state: enter / replace the key -->
+            <StackPanel x:Name="KeyEditPanel">
+                <StackPanel Orientation="Horizontal">
+                    <PasswordBox x:Name="KeyBox" Width="360" />
+                    <TextBox x:Name="KeyBoxPlain" Width="360" Visibility="Collapsed" />
+                    <CheckBox x:Name="ShowKey" Content="Show" VerticalAlignment="Center"
+                              Margin="10,0,0,0" Checked="OnToggleShowKey" Unchecked="OnToggleShowKey" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                    <Button Content="Save Key" Padding="16,8" Click="OnSaveKey" Style="{StaticResource AccentButton}" />
+                    <Button x:Name="CancelKeyButton" Content="Cancel" Margin="10,0,0,0"
+                            Click="OnCancelKey" Visibility="Collapsed" />
+                    <TextBlock x:Name="KeyStatus" VerticalAlignment="Center" Margin="12,0,0,0"
+                               Foreground="{StaticResource SecondaryTextBrush}" />
+                </StackPanel>
             </StackPanel>
 
             <!-- Vertex extra config -->

@@ -122,7 +122,11 @@
                     <Setter.Value>
                         <ControlTemplate TargetType="ComboBox">
                             <Grid>
+                                <!-- Background is set on the ToggleButton explicitly: replacing its
+                                     Template (not its Style) would otherwise leave its default light
+                                     background, making the closed field look white. -->
                                 <ToggleButton Focusable="False" ClickMode="Press"
+                                              Background="{StaticResource FieldBrush}"
                                               IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
                                     <ToggleButton.Template>
                                         <ControlTemplate TargetType="ToggleButton">

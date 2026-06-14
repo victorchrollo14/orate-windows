@@ -141,7 +141,9 @@ public partial class App : Application
     {
         if (_overlay.IsTranscribing) return; // ignore while a transcription is in flight
         _overlay.SetListening(true);
-        _recorder.StartRecording();
+        // Open the mic on a background thread — waveInOpen can block ~500ms on the first
+        // record, which would otherwise freeze the just-shown waveform into a static rectangle.
+        Task.Run(_recorder.StartRecording);
     }
 
     private void OnPushToTalkUp()
