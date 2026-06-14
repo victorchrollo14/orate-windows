@@ -36,8 +36,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Only third-party runtime dependency: audio capture + FLAC encode. -->
+    <!-- Audio capture + FLAC encode. -->
     <PackageReference Include="NAudio" Version="2.2.1" />
+    <!-- Installer + silent background auto-update from GitHub Releases. -->
+    <PackageReference Include="Velopack" Version="1.2.0" />
   </ItemGroup>
 
 </Project>

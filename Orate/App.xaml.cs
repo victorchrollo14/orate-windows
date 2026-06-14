@@ -2,6 +2,8 @@ using System.Diagnostics;
 using System.Windows;
 using Orate.Overlay;
 using Orate.Services;
+using Velopack;
+using Velopack.Sources;
 using Drawing = System.Drawing;
 using Forms = System.Windows.Forms;
 
@@ -36,8 +38,14 @@ public partial class App : Application
     private bool _ownsMutex;
     public string? LastTranscription { get; private set; }
 
+    private const string RepoUrl = "https://github.com/victorchrollo14/orate-windows";
+
     protected override void OnStartup(StartupEventArgs e)
     {
+        // MUST be the first thing that runs — Velopack's install/update/uninstall hooks are
+        // launched as a brief second process and exit before the UI (or the mutex below) runs.
+        VelopackApp.Build().Run();
+
         base.OnStartup(e);
 
         // Single instance. A second launch signals the running instance to show its window,
@@ -87,6 +95,44 @@ public partial class App : Application
         SetupTray();
 
         ShowMainWindow(); // open on first launch so the user can configure
+
+        _ = CheckForUpdatesAsync(); // silent background update check (installed builds only)
+    }
+
+    private async Task CheckForUpdatesAsync()
+    {
+        try
+        {
+            var mgr = new UpdateManager(new GithubSource(RepoUrl, null, prerelease: false));
+            if (!mgr.IsInstalled)
+            {
+                Logger.Log("Update: not a Velopack install (portable build) — skipping.");
+                return;
+            }
+
+            var info = await mgr.CheckForUpdatesAsync();
+            if (info == null)
+            {
+                Logger.Log("Update: already up to date.");
+                return;
+            }
+
+            Logger.Log($"Update: downloading {info.TargetFullRelease.Version}…");
+            await mgr.DownloadUpdatesAsync(info);
+
+            // Apply on exit rather than restarting under the user — this is a tray app.
+            mgr.WaitExitThenApplyUpdates(info.TargetFullRelease, silent: false, restart: false);
+            Logger.Log($"Update: {info.TargetFullRelease.Version} staged; applies on quit.");
+            _tray?.ShowBalloonTip(
+                5000,
+                "Orate updated",
+                $"Version {info.TargetFullRelease.Version} will be applied when you quit Orate.",
+                Forms.ToolTipIcon.Info);
+        }
+        catch (Exception ex)
+        {
+            Logger.Log("Update check failed", ex);
+        }
     }
 
     // MARK: - Pipeline
