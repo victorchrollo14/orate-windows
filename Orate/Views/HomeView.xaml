@@ -2,34 +2,59 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <StackPanel Margin="32" MaxWidth="640" HorizontalAlignment="Left">
+        <StackPanel Margin="40,36,40,40" MaxWidth="680" HorizontalAlignment="Left">
 
-            <TextBlock Text="Orate" FontSize="32" FontWeight="Bold" />
-            <TextBlock Text="Push-to-talk voice transcription"
-                       FontSize="15" Foreground="#888" Margin="0,4,0,24" />
+            <!-- Welcome header -->
+            <TextBlock Text="Welcome to Orate" FontSize="34" FontWeight="Bold" />
+            <TextBlock Margin="0,8,0,28" FontSize="16" TextWrapping="Wrap"
+                       Foreground="{StaticResource SecondaryTextBrush}">
+                <Run Text="Hold" />
+                <Run x:Name="HotkeyInline" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" />
+                <Run Text="and speak. Release to transcribe and paste." />
+            </TextBlock>
 
-            <Border Background="#11000000" CornerRadius="8" Padding="20" Margin="0,0,0,16">
+            <!-- How it works -->
+            <Border Background="{StaticResource CardBrush}" BorderBrush="{StaticResource CardBorderBrush}"
+                    BorderThickness="1" CornerRadius="10" Padding="22" Margin="0,0,0,16">
                 <StackPanel>
-                    <TextBlock Text="How to use" FontWeight="SemiBold" Margin="0,0,0,10" />
-                    <TextBlock TextWrapping="Wrap" Foreground="#666" Margin="0,0,0,6">
-                        1. Hold your push-to-talk key and speak.
-                    </TextBlock>
-                    <TextBlock TextWrapping="Wrap" Foreground="#666" Margin="0,0,0,6">
-                        2. Release the key — Orate transcribes and pastes the cleaned text
-                        wherever your cursor is.
-                    </TextBlock>
-                    <TextBlock TextWrapping="Wrap" Foreground="#666">
-                        3. Press Esc while transcribing to cancel.
-                    </TextBlock>
+                    <TextBlock Text="How it works" FontWeight="SemiBold" FontSize="15" Margin="0,0,0,14" />
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                        <TextBlock Text="1" Width="22" Foreground="{StaticResource AccentBrush}" FontWeight="Bold" />
+                        <TextBlock TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}"
+                                   Text="Hold your push-to-talk key and speak naturally." />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                        <TextBlock Text="2" Width="22" Foreground="{StaticResource AccentBrush}" FontWeight="Bold" />
+                        <TextBlock TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}"
+                                   Text="Release — Orate cleans up the speech and pastes it wherever your cursor is." />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="3" Width="22" Foreground="{StaticResource AccentBrush}" FontWeight="Bold" />
+                        <TextBlock TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}"
+                                   Text="Press Esc while transcribing to cancel." />
+                    </StackPanel>
                 </StackPanel>
             </Border>
 
-            <Border Background="#11000000" CornerRadius="8" Padding="20">
-                <StackPanel>
-                    <TextBlock Text="Current push-to-talk key" FontWeight="SemiBold" Margin="0,0,0,6" />
-                    <TextBlock x:Name="HotkeyLabel" FontSize="18" />
-                    <TextBlock x:Name="ProviderLabel" Foreground="#888" Margin="0,8,0,0" />
-                </StackPanel>
+            <!-- Status -->
+            <Border Background="{StaticResource CardBrush}" BorderBrush="{StaticResource CardBorderBrush}"
+                    BorderThickness="1" CornerRadius="10" Padding="22">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="PUSH-TO-TALK KEY" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,0,6" />
+                        <TextBlock x:Name="HotkeyLabel" FontSize="20" FontWeight="SemiBold" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Text="PROVIDER" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,0,6" />
+                        <TextBlock x:Name="ProviderLabel" FontSize="20" FontWeight="SemiBold" />
+                    </StackPanel>
+                </Grid>
             </Border>
 
         </StackPanel>

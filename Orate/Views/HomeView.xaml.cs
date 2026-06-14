@@ -11,8 +11,10 @@ public partial class HomeView : UserControl
         Loaded += (_, _) =>
         {
             var s = SettingsStore.Current;
-            HotkeyLabel.Text = VirtualKeys.DisplayName(s.PushToTalkVk);
-            ProviderLabel.Text = $"Provider: {s.Provider.DisplayName()}";
+            var key = VirtualKeys.DisplayName(s.PushToTalkVk);
+            HotkeyInline.Text = $" {key} ";
+            HotkeyLabel.Text = key;
+            ProviderLabel.Text = s.Provider.DisplayName();
         };
     }
 }

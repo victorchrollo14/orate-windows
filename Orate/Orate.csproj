@@ -17,8 +17,14 @@
     <AssemblyName>Orate</AssemblyName>
     <RootNamespace>Orate</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\orate.ico</ApplicationIcon>
     <Version>0.1.0</Version>
   </PropertyGroup>
+
+  <!-- App icon, available at runtime for the tray NotifyIcon and window chrome. -->
+  <ItemGroup>
+    <Resource Include="Assets\orate.ico" />
+  </ItemGroup>
 
   <!-- UseWindowsForms (needed only for the tray NotifyIcon) injects global WinForms +
        System.Drawing usings that clash with WPF types (Application, Brush, Rectangle,

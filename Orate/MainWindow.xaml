@@ -3,20 +3,44 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Orate" Height="650" Width="900"
         MinHeight="500" MinWidth="700"
+        Background="{StaticResource BgBrush}"
+        Icon="/Assets/orate.ico"
         WindowStartupLocation="CenterScreen">
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="180" />
+            <ColumnDefinition Width="210" />
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
         <!-- Sidebar -->
-        <Border Grid.Column="0" Background="#08000000">
-            <ListBox x:Name="Nav" BorderThickness="0" Background="Transparent"
-                     Padding="8,16" SelectionChanged="OnNavChanged">
-                <ListBoxItem Content="Home" Padding="12,10" />
-                <ListBoxItem Content="Settings" Padding="12,10" />
-            </ListBox>
+        <Border Grid.Column="0" Background="{StaticResource SidebarBrush}">
+            <DockPanel>
+                <!-- Brand -->
+                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="20,24,20,20">
+                    <Image Source="/Assets/orate.ico" Width="26" Height="26" />
+                    <TextBlock Text="Orate" FontSize="18" FontWeight="SemiBold"
+                               VerticalAlignment="Center" Margin="10,0,0,0" />
+                </StackPanel>
+
+                <ListBox x:Name="Nav" BorderThickness="0" Background="Transparent"
+                         Padding="12,4" SelectionChanged="OnNavChanged"
+                         ItemContainerStyle="{StaticResource NavItem}">
+                    <ListBoxItem>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE80F;" FontFamily="Segoe MDL2 Assets"
+                                       FontSize="14" VerticalAlignment="Center" Margin="0,0,12,0" />
+                            <TextBlock Text="Home" FontSize="14" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </ListBoxItem>
+                    <ListBoxItem>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE713;" FontFamily="Segoe MDL2 Assets"
+                                       FontSize="14" VerticalAlignment="Center" Margin="0,0,12,0" />
+                            <TextBlock Text="Settings" FontSize="14" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </ListBoxItem>
+                </ListBox>
+            </DockPanel>
         </Border>
 
         <!-- Detail -->

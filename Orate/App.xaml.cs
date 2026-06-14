@@ -208,12 +208,29 @@ public partial class App : Application
 
         _tray = new Forms.NotifyIcon
         {
-            Icon = Drawing.SystemIcons.Application,
+            Icon = LoadAppIcon() ?? Drawing.SystemIcons.Application,
             Visible = true,
             Text = "Orate",
             ContextMenuStrip = menu,
         };
         _tray.DoubleClick += (_, _) => ShowMainWindow();
+    }
+
+    private static Drawing.Icon? LoadAppIcon()
+    {
+        try
+        {
+            var info = GetResourceStream(new Uri("pack://application:,,,/Assets/orate.ico"));
+            if (info?.Stream is { } stream)
+            {
+                using (stream) return new Drawing.Icon(stream);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Log("Failed to load app icon", ex);
+        }
+        return null;
     }
 
     private void ShowMainWindow()
