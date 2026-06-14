@@ -101,7 +101,8 @@ public partial class App : Application
     private void OnPushToTalkUp()
     {
         if (!_recorder.IsRecording) return;
-        _overlay.SetListening(false);
+        // Don't drop to idle here — FinishRecording transitions waveform → loading directly,
+        // so the pill never flashes its tiny idle state in between.
         FinishRecording();
     }
 
@@ -117,8 +118,7 @@ public partial class App : Application
         {
             // Nothing captured, or FLAC encoding failed — surface it instead of failing silently.
             Logger.Log("FinishRecording: no audio produced (capture empty or FLAC encode failed).");
-            _overlay.SetListening(false);
-            _overlay.ShowError();
+            _overlay.ShowError(); // resets listening state and shows the error pill
             return;
         }
 

@@ -28,6 +28,7 @@ public partial class OverlayWindow : Window
     private readonly List<Rectangle> _bars = new();
     private readonly List<double> _smoothed = new();
     private double _phase;
+    private double _currentLevel;
 
     private DispatcherTimer? _errorTimer;
 
@@ -72,7 +73,11 @@ public partial class OverlayWindow : Window
     {
         if (transcribing == IsTranscribing) return;
         IsTranscribing = transcribing;
-        if (transcribing) ShowLoading();
+        if (transcribing)
+        {
+            IsListening = false; // came straight from the waveform — avoid an idle flash
+            ShowLoading();
+        }
         else ShowIdle();
     }
 
@@ -92,6 +97,11 @@ public partial class OverlayWindow : Window
         _errorTimer.Start();
     }
 
+    /// <summary>
+    /// Latches the latest mic level. The actual bar animation runs on a continuous render loop
+    /// (<see cref="OnWaveformFrame"/>) so the waveform is alive the instant we start listening,
+    /// even before NAudio delivers its first audio buffer (~0.5–1s) — no dead/static pill.
+    /// </summary>
     public void UpdateLevel(double level)
     {
         if (!Dispatcher.CheckAccess())
@@ -99,14 +109,21 @@ public partial class OverlayWindow : Window
             Dispatcher.BeginInvoke(() => UpdateLevel(level));
             return;
         }
-        if (!IsListening || _bars.Count == 0) return;
+        _currentLevel = Math.Max(_currentLevel, level); // peak-hold; the frame loop decays it
+    }
 
-        double boosted = Math.Pow(level, 0.4);
+    private void OnWaveformFrame(object? sender, EventArgs e)
+    {
+        if (_bars.Count == 0) return;
+
         _phase += 0.15;
+        double boosted = Math.Pow(_currentLevel, 0.4);
+        _currentLevel *= 0.88; // decay toward the idle baseline when no fresh input arrives
 
         const double minH = 3;
         double maxH = ActivePillHeight - 6;
-        const double smoothing = 0.2;
+        const double smoothing = 0.25;
+        const double baseline = 0.10; // gentle motion so the pill never looks frozen
         double h = Height;
         double center = (_bars.Count - 1) / 2.0;
 
@@ -117,7 +134,8 @@ public partial class OverlayWindow : Window
             double variation = 0.7 + 0.3 * sine;                            // 0.7 … 1.0
             double shape = 1.0 - distFromCenter * 0.4;                      // taller center
 
-            double target = Math.Min(boosted * variation * shape, 1.0);
+            double level = Math.Max(boosted, baseline * (0.6 + 0.4 * sine));
+            double target = Math.Min(level * variation * shape, 1.0);
             double targetH = minH + (maxH - minH) * target;
 
             double prev = _smoothed[i];
@@ -141,6 +159,7 @@ public partial class OverlayWindow : Window
     {
         ClearContent();
         _phase = 0;
+        _currentLevel = 0;
 
         const double barWidth = 2.5;
         const double barGap = 2;
@@ -168,6 +187,8 @@ public partial class OverlayWindow : Window
             _bars.Add(bar);
             _smoothed.Add(minH);
         }
+
+        CompositionTarget.Rendering += OnWaveformFrame; // continuous animation while listening
     }
 
     private void ShowLoading()
@@ -234,10 +255,11 @@ public partial class OverlayWindow : Window
 
     private void ClearContent()
     {
-        foreach (var bar in _bars) bar.BeginAnimation(HeightProperty, null);
+        CompositionTarget.Rendering -= OnWaveformFrame; // safe even if not subscribed
         PillCanvas.Children.Clear();
         _bars.Clear();
         _smoothed.Clear();
+        _currentLevel = 0;
     }
 
     private void Resize(double width, double height, Brush background)
