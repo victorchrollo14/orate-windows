@@ -20,6 +20,15 @@
     <Version>0.1.0</Version>
   </PropertyGroup>
 
+  <!-- UseWindowsForms (needed only for the tray NotifyIcon) injects global WinForms +
+       System.Drawing usings that clash with WPF types (Application, Brush, Rectangle,
+       UserControl, KeyEventArgs, Clipboard, ...). We reference WinForms/Drawing exclusively
+       through the `Forms`/`Drawing` aliases in App.xaml.cs, so drop the implicit globals. -->
+  <ItemGroup>
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
+
   <ItemGroup>
     <!-- Only third-party runtime dependency: audio capture + FLAC encode. -->
     <PackageReference Include="NAudio" Version="2.2.1" />
