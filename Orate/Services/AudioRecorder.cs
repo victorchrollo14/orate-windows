@@ -15,7 +15,9 @@ public sealed class AudioRecorder
     // FLAC media subtype GUID (format tag 0xF1AC). Matches what the Cloudflare Worker expects.
     private static readonly Guid MFAudioFormat_FLAC = new("0000F1AC-0000-0010-8000-00AA00389B71");
 
-    private static readonly WaveFormat RecordingFormat = new(sampleRate: 16000, bits: 16, channels: 1);
+    // NAudio WaveFormat(rate, bits, channels): 16 kHz, 16-bit, mono. Positional to avoid
+    // depending on the parameter names.
+    private static readonly WaveFormat RecordingFormat = new(16000, 16, 1);
 
     private WaveInEvent? _waveIn;
     private MemoryStream? _pcmBuffer;
