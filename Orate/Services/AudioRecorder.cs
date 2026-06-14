@@ -154,10 +154,30 @@ public sealed class AudioRecorder
         Logger.Log("AudioRecorder: FLAC encode — calling MediaFoundationApi.Startup().");
         MediaFoundationApi.Startup();
 
-        var mediaType = SelectFlacMediaType(format)
-            ?? throw new InvalidOperationException("No Media Foundation FLAC encoder available on this system.");
-        Logger.Log("AudioRecorder: FLAC encode — output media type selected; encoding…");
+        // Try output media types in order, best first. The MF FLAC encoder throws 0xC00D36B4
+        // (MF_E_INVALIDMEDIATYPE) at SetInputMediaType when the chosen output type's sample
+        // rate/channels don't match the PCM input (FLAC can't resample). The reliable fix is a
+        // hand-built output type that mirrors the input exactly; enumerated types are a fallback.
+        Exception? lastError = null;
+        foreach (var (label, mediaType) in CandidateFlacOutputTypes(format))
+        {
+            try
+            {
+                var bytes = EncodeWith(mediaType, pcm, format);
+                Logger.Log($"AudioRecorder: FLAC encode — succeeded via {label}.");
+                return bytes;
+            }
+            catch (Exception ex)
+            {
+                Logger.Log($"AudioRecorder: FLAC encode — {label} failed: {ex.Message}");
+                lastError = ex;
+            }
+        }
+        throw lastError ?? new InvalidOperationException("No FLAC output media type available.");
+    }
 
+    private static byte[] EncodeWith(MediaType mediaType, byte[] pcm, WaveFormat format)
+    {
         var tmp = Path.Combine(Path.GetTempPath(), $"orate_{Guid.NewGuid():N}.flac");
         try
         {
@@ -174,23 +194,40 @@ public sealed class AudioRecorder
         }
     }
 
-    private static MediaType? SelectFlacMediaType(WaveFormat format)
+    /// <summary>
+    /// Output media types to attempt, best first: a hand-built FLAC type that mirrors the input
+    /// format exactly (so sample rate/channels match), then any enumerated FLAC types as fallback.
+    /// </summary>
+    private static IEnumerable<(string Label, MediaType MediaType)> CandidateFlacOutputTypes(WaveFormat format)
     {
-        var candidates = MediaFoundationEncoder.GetOutputMediaTypes(MFAudioFormat_FLAC);
-        Logger.Log($"AudioRecorder: FLAC encode — {candidates.Length} candidate output media type(s).");
-        if (candidates.Length == 0) return null;
-
-        // Prefer an output type that matches our sample rate and channel count.
-        MediaType? channelMatch = null;
-        foreach (var mt in candidates)
+        // Build a FLAC output type from the input WaveFormat (carries the correct major type,
+        // sample rate, channels, bits) and just flip the subtype PCM -> FLAC.
+        MediaType? manual = null;
+        try
         {
-            if (TryGet(mt, out int sr, out int ch))
-            {
-                if (sr == format.SampleRate && ch == format.Channels) return mt;
-                if (ch == format.Channels) channelMatch ??= mt;
-            }
+            manual = new MediaType(format) { SubType = MFAudioFormat_FLAC };
         }
-        return channelMatch ?? candidates[0];
+        catch (Exception ex)
+        {
+            Logger.Log("AudioRecorder: building manual FLAC media type failed", ex);
+        }
+        if (manual != null) yield return ("manual media type", manual);
+
+        MediaType[] enumerated;
+        try
+        {
+            enumerated = MediaFoundationEncoder.GetOutputMediaTypes(MFAudioFormat_FLAC);
+        }
+        catch (Exception ex)
+        {
+            Logger.Log("AudioRecorder: GetOutputMediaTypes(FLAC) failed", ex);
+            enumerated = Array.Empty<MediaType>();
+        }
+        Logger.Log($"AudioRecorder: FLAC encode — {enumerated.Length} enumerated output type(s) as fallback.");
+        foreach (var mt in enumerated)
+        {
+            yield return ("enumerated type", mt);
+        }
     }
 
     private static bool TryGet(MediaType mt, out int sampleRate, out int channels)
