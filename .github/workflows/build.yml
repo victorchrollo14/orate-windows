@@ -1,0 +1,81 @@
+name: Windows Build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # allow manual runs from the Actions tab
+
+concurrency:
+  group: windows-build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write # needed to publish/update the rolling prerelease
+
+env:
+  PROJECT: Orate/Orate.csproj
+  RUNTIME: win-x64
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore Orate.sln
+
+      # Self-contained single-file build: the resulting Orate.exe bundles the .NET runtime,
+      # so it runs on a clean Windows 10/11 machine with nothing pre-installed.
+      - name: Publish
+        run: >
+          dotnet publish ${{ env.PROJECT }}
+          -c Release
+          -r ${{ env.RUNTIME }}
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:DebugType=none
+          -o publish
+
+      - name: Zip
+        shell: pwsh
+        run: |
+          $sha = "${{ github.sha }}".Substring(0,7)
+          $name = "Orate-${{ env.RUNTIME }}-$sha.zip"
+          echo "ZIP_NAME=$name" >> $env:GITHUB_ENV
+          Compress-Archive -Path publish/* -DestinationPath $name -Force
+
+      # Downloadable from the run's "Summary" page (requires being signed in to GitHub).
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Orate-${{ env.RUNTIME }}
+          path: ${{ env.ZIP_NAME }}
+          retention-days: 30
+
+      # A single prerelease tagged "windows-latest" that is overwritten on every push to main,
+      # giving you a stable download link:
+      #   https://github.com/<owner>/<repo>/releases/tag/windows-latest
+      - name: Update rolling prerelease
+        if: github.event_name == 'push'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: windows-latest
+          name: Latest Windows build
+          body: |
+            Rolling build of the latest commit on `main`.
+            Commit: ${{ github.sha }}
+
+            Download the `.zip`, extract it, and run `Orate.exe`.
+            This is an unsigned build — Windows SmartScreen may warn on first run
+            ("More info" → "Run anyway").
+          prerelease: true
+          files: ${{ env.ZIP_NAME }}

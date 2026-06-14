@@ -37,6 +37,23 @@ dotnet run --project Orate
 
 Or open `Orate.sln` in Visual Studio 2022 (17.8+) and press F5.
 
+## Download a prebuilt .exe (CI)
+
+Every push to `main` runs the **Windows Build** workflow (`.github/workflows/build.yml`) on a
+Windows runner and produces a **self-contained single-file** build — `Orate.exe` bundles the
+.NET runtime, so it runs on a clean Windows 10/11 machine with nothing pre-installed.
+
+Two ways to grab it on your Windows laptop:
+
+- **Rolling prerelease (stable link):**
+  `https://github.com/<owner>/orate-windows/releases/tag/windows-latest` — overwritten on every
+  push to `main`. Download the `.zip`, extract, run `Orate.exe`.
+- **Build artifact:** open the workflow run under the repo's **Actions** tab → **Summary** →
+  download `Orate-win-x64` (requires being signed in to GitHub).
+
+It's an unsigned build, so Windows SmartScreen warns on first run — click **More info → Run
+anyway**.
+
 ## First-time setup
 
 1. Launch Orate. The main window opens and a tray icon appears.
