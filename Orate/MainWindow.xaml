@@ -34,6 +34,13 @@
                     </ListBoxItem>
                     <ListBoxItem>
                         <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE81C;" FontFamily="Segoe MDL2 Assets"
+                                       FontSize="14" VerticalAlignment="Center" Margin="0,0,12,0" />
+                            <TextBlock Text="History" FontSize="14" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </ListBoxItem>
+                    <ListBoxItem>
+                        <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE713;" FontFamily="Segoe MDL2 Assets"
                                        FontSize="14" VerticalAlignment="Center" Margin="0,0,12,0" />
                             <TextBlock Text="Settings" FontSize="14" VerticalAlignment="Center" />

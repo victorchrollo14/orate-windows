@@ -78,6 +78,15 @@
                 <Button Content="Open Log Folder" Padding="14,8" Margin="10,0,0,0" Click="OnOpenLogFolder" />
             </StackPanel>
 
+            <!-- About / updates -->
+            <TextBlock Text="About" FontWeight="SemiBold" Margin="0,28,0,6" />
+            <StackPanel Orientation="Horizontal">
+                <TextBlock x:Name="VersionLabel" Foreground="{StaticResource SecondaryTextBrush}"
+                           VerticalAlignment="Center" />
+                <Button x:Name="UpdateButton" Content="Restart to update" Margin="14,0,0,0"
+                        Click="OnRestartToUpdate" Style="{StaticResource AccentButton}" Visibility="Collapsed" />
+            </StackPanel>
+
         </StackPanel>
     </ScrollViewer>
 </UserControl>

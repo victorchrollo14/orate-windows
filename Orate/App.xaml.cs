@@ -38,6 +38,14 @@ public partial class App : Application
     private bool _ownsMutex;
     public string? LastTranscription { get; private set; }
 
+    // Update state, surfaced to the Settings screen.
+    private UpdateManager? _updateManager;
+    private UpdateInfo? _pendingUpdate;
+    public static App Instance => (App)Current;
+    public string CurrentVersionDisplay { get; private set; } = "portable build";
+    public bool IsUpdateReady => _pendingUpdate != null;
+    public event Action? UpdateStateChanged;
+
     private const string RepoUrl = "https://github.com/victorchrollo14/orate-windows";
 
     protected override void OnStartup(StartupEventArgs e)
@@ -103,36 +111,48 @@ public partial class App : Application
     {
         try
         {
-            var mgr = new UpdateManager(new GithubSource(RepoUrl, null, prerelease: false));
-            if (!mgr.IsInstalled)
+            _updateManager = new UpdateManager(new GithubSource(RepoUrl, null, prerelease: false));
+            if (!_updateManager.IsInstalled)
             {
                 Logger.Log("Update: not a Velopack install (portable build) — skipping.");
                 return;
             }
 
-            var info = await mgr.CheckForUpdatesAsync();
+            CurrentVersionDisplay = _updateManager.CurrentVersion?.ToString() ?? "unknown";
+            UpdateStateChanged?.Invoke();
+
+            var info = await _updateManager.CheckForUpdatesAsync();
             if (info == null)
             {
-                Logger.Log("Update: already up to date.");
+                Logger.Log($"Update: already up to date (v{CurrentVersionDisplay}).");
                 return;
             }
 
             Logger.Log($"Update: downloading {info.TargetFullRelease.Version}…");
-            await mgr.DownloadUpdatesAsync(info);
+            await _updateManager.DownloadUpdatesAsync(info);
 
-            // Apply on exit rather than restarting under the user — this is a tray app.
-            mgr.WaitExitThenApplyUpdates(info.TargetFullRelease, silent: false, restart: false);
-            Logger.Log($"Update: {info.TargetFullRelease.Version} staged; applies on quit.");
+            _pendingUpdate = info;
+            Logger.Log($"Update: {info.TargetFullRelease.Version} downloaded; ready to apply.");
+            UpdateStateChanged?.Invoke();
             _tray?.ShowBalloonTip(
-                5000,
-                "Orate updated",
-                $"Version {info.TargetFullRelease.Version} will be applied when you quit Orate.",
+                6000,
+                "Update ready",
+                $"Orate {info.TargetFullRelease.Version} installs when you quit — or use “Restart to update” in Settings.",
                 Forms.ToolTipIcon.Info);
         }
         catch (Exception ex)
         {
             Logger.Log("Update check failed", ex);
         }
+    }
+
+    /// <summary>Applies a downloaded update immediately and relaunches. Called from Settings.</summary>
+    public void RestartToApplyUpdate()
+    {
+        if (_updateManager == null || _pendingUpdate == null) return;
+        if (_mainWindow != null) _mainWindow.AllowClose = true;
+        Logger.Log("Update: applying and restarting at user request.");
+        _updateManager.ApplyUpdatesAndRestart(_pendingUpdate.TargetFullRelease);
     }
 
     // MARK: - Pipeline
@@ -183,6 +203,7 @@ public partial class App : Application
             if (!string.IsNullOrEmpty(result.Transcript))
             {
                 TextInserter.InsertText(result.Transcript);
+                RecordingStore.Save(audio, result);
                 Logger.Log($"Transcription inserted ({result.LatencyMs}ms, {result.Transcript.Length} chars).");
             }
             else
@@ -295,6 +316,22 @@ public partial class App : Application
     private void QuitApp()
     {
         if (_mainWindow != null) _mainWindow.AllowClose = true;
+
+        // If an update is staged, install it on the way out (no restart — just exit updated).
+        if (_updateManager != null && _pendingUpdate != null)
+        {
+            try
+            {
+                Logger.Log("Update: applying on quit.");
+                _updateManager.ApplyUpdatesAndExit(_pendingUpdate.TargetFullRelease);
+                return;
+            }
+            catch (Exception ex)
+            {
+                Logger.Log("Update: apply-on-quit failed", ex);
+            }
+        }
+
         Shutdown();
     }
 

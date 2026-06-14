@@ -12,8 +12,24 @@ public partial class SettingsView : UserControl
     public SettingsView()
     {
         InitializeComponent();
-        Loaded += (_, _) => LoadFromSettings();
+        Loaded += (_, _) =>
+        {
+            LoadFromSettings();
+            RefreshAbout();
+            App.Instance.UpdateStateChanged += OnUpdateStateChanged;
+        };
+        Unloaded += (_, _) => App.Instance.UpdateStateChanged -= OnUpdateStateChanged;
     }
+
+    private void OnUpdateStateChanged() => Dispatcher.Invoke(RefreshAbout);
+
+    private void RefreshAbout()
+    {
+        VersionLabel.Text = $"Orate {App.Instance.CurrentVersionDisplay}";
+        UpdateButton.Visibility = App.Instance.IsUpdateReady ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void OnRestartToUpdate(object sender, RoutedEventArgs e) => App.Instance.RestartToApplyUpdate();
 
     private static string CredentialKey(AIProvider p) => p switch
     {
