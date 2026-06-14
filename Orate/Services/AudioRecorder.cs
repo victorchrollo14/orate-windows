@@ -46,7 +46,7 @@ public sealed class AudioRecorder
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Failed to start recording: {ex}");
+            Logger.Log("AudioRecorder: failed to start recording (mic permission or no device?)", ex);
             Cleanup();
         }
     }
@@ -65,15 +65,21 @@ public sealed class AudioRecorder
         _pcmBuffer?.Dispose();
         _pcmBuffer = null;
 
-        if (pcm == null || pcm.Length == 0) return null;
+        if (pcm == null || pcm.Length == 0)
+        {
+            Logger.Log("AudioRecorder: no PCM captured.");
+            return null;
+        }
 
         try
         {
-            return EncodeToFlac(pcm, RecordingFormat);
+            var flac = EncodeToFlac(pcm, RecordingFormat);
+            Logger.Log($"AudioRecorder: captured {pcm.Length} PCM bytes -> {flac.Length} FLAC bytes.");
+            return flac;
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"FLAC encode failed: {ex}");
+            Logger.Log("AudioRecorder: FLAC encode failed", ex);
             return null;
         }
     }

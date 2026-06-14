@@ -16,6 +16,13 @@ public partial class App : Application
 {
     private static Mutex? _singleInstanceMutex;
 
+    // Cross-process signal: a second launch sets this so the already-running instance pops its
+    // window back up (instead of the second process exiting silently and leaving the user stuck).
+    private const string ShowWindowEventName = "Orate.ShowWindow";
+    private EventWaitHandle? _showWindowEvent;
+    private Thread? _showWindowListener;
+    private volatile bool _shuttingDown;
+
     /// <summary>Exposed so the settings rebind control can suppress/retarget the live hook.</summary>
     public static GlobalHotkey? Hotkey { get; private set; }
 
@@ -33,14 +40,34 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
-        // Single instance.
+        // Single instance. A second launch signals the running instance to show its window,
+        // then exits — otherwise the user (whose window is hidden to the tray) gets stuck.
         _singleInstanceMutex = new Mutex(initiallyOwned: true, "Orate.SingleInstance", out bool createdNew);
         if (!createdNew)
         {
+            try
+            {
+                EventWaitHandle.OpenExisting(ShowWindowEventName).Set();
+            }
+            catch (Exception ex)
+            {
+                Logger.Log("Failed to signal existing instance", ex);
+            }
             Shutdown();
             return;
         }
         _ownsMutex = true;
+
+        Logger.Log("=== Orate starting ===");
+        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+            Logger.Log("Unhandled exception", (args.ExceptionObject as Exception)!);
+        DispatcherUnhandledException += (_, args) =>
+        {
+            Logger.Log("Dispatcher unhandled exception", args.Exception);
+            args.Handled = true;
+        };
+
+        StartShowWindowListener();
 
         _overlay = new OverlayWindow();
         _overlay.ShowOverlay();
@@ -84,12 +111,16 @@ public partial class App : Application
     private async void FinishRecording()
     {
         var audio = _recorder.StopRecording();
-        if (audio == null)
+        if (audio == null || audio.Length == 0)
         {
+            // Nothing captured, or FLAC encoding failed — surface it instead of failing silently.
+            Logger.Log("FinishRecording: no audio produced (capture empty or FLAC encode failed).");
             _overlay.SetListening(false);
+            _overlay.ShowError();
             return;
         }
 
+        Logger.Log($"FinishRecording: {audio.Length} bytes of FLAC; provider={SettingsStore.Current.Provider}");
         _overlay.SetTranscribing(true);
         _cts = new CancellationTokenSource();
 
@@ -102,8 +133,12 @@ public partial class App : Application
             if (!string.IsNullOrEmpty(result.Transcript))
             {
                 TextInserter.InsertText(result.Transcript);
+                Logger.Log($"Transcription inserted ({result.LatencyMs}ms, {result.Transcript.Length} chars).");
             }
-            Debug.WriteLine($"Transcription inserted ({result.LatencyMs}ms): {result.Transcript}");
+            else
+            {
+                Logger.Log($"Transcription returned empty text ({result.LatencyMs}ms) — likely silence.");
+            }
             _overlay.SetTranscribing(false);
         }
         catch (OperationCanceledException)
@@ -112,7 +147,7 @@ public partial class App : Application
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"Transcription failed: {ex}");
+            Logger.Log("Transcription failed", ex);
             _overlay.ShowError();
         }
         finally
@@ -126,6 +161,33 @@ public partial class App : Application
         _cts?.Cancel();
         _overlay.SetTranscribing(false);
         Debug.WriteLine("Transcription cancelled by user");
+    }
+
+    // MARK: - Single-instance window signal
+
+    private void StartShowWindowListener()
+    {
+        _showWindowEvent = new EventWaitHandle(false, EventResetMode.AutoReset, ShowWindowEventName);
+        _showWindowListener = new Thread(() =>
+        {
+            while (!_shuttingDown)
+            {
+                try
+                {
+                    if (_showWindowEvent.WaitOne(500))
+                    {
+                        Dispatcher.Invoke(ShowMainWindow);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.Log("Show-window listener error", ex);
+                    break;
+                }
+            }
+        })
+        { IsBackground = true, Name = "Orate.ShowWindowListener" };
+        _showWindowListener.Start();
     }
 
     // MARK: - Tray & window
@@ -171,6 +233,9 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        _shuttingDown = true;
+        _showWindowEvent?.Set();   // wake the listener so it can observe _shuttingDown and exit
+        _showWindowEvent?.Dispose();
         _hotkey?.Dispose();
         if (_tray != null)
         {
