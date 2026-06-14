@@ -1,0 +1,17 @@
+<UserControl x:Class="Orate.Views.HotkeyRecorderControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Focusable="True">
+    <StackPanel Orientation="Horizontal">
+        <Button x:Name="RecordButton"
+                MinWidth="160"
+                Padding="14,8"
+                Click="OnRecordClick"
+                Content="Right Alt" />
+        <TextBlock x:Name="HintText"
+                   VerticalAlignment="Center"
+                   Margin="12,0,0,0"
+                   Foreground="#888"
+                   Text="Click, then press a key to use as push-to-talk" />
+    </StackPanel>
+</UserControl>
