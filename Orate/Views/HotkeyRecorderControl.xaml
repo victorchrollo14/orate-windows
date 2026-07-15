@@ -11,7 +11,8 @@
         <TextBlock x:Name="HintText"
                    VerticalAlignment="Center"
                    Margin="12,0,0,0"
-                   Foreground="#888"
+                   FontSize="12"
+                   Foreground="{StaticResource TertiaryTextBrush}"
                    Text="Click, then press a key to use as push-to-talk" />
     </StackPanel>
 </UserControl>

@@ -3,21 +3,41 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:views="clr-namespace:Orate.Views">
     <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <StackPanel Margin="32" MaxWidth="640" HorizontalAlignment="Left">
+        <StackPanel Margin="32" MaxWidth="680" HorizontalAlignment="Left">
 
-            <TextBlock Text="Settings" FontSize="26" FontWeight="Bold" Margin="0,0,0,24" />
+            <!-- Header -->
+            <TextBlock Text="Settings" FontSize="34" FontWeight="Bold" />
+            <TextBlock Margin="0,8,0,24" FontSize="16"
+                       Foreground="{StaticResource SecondaryTextBrush}"
+                       Text="Configure your API credentials and preferences." />
+
+            <!-- Push-to-talk -->
+            <TextBlock Text="Push-to-Talk Key" FontWeight="SemiBold" FontSize="15" Margin="0,0,0,6" />
+            <TextBlock Margin="0,0,0,10" TextWrapping="Wrap" FontSize="13"
+                       Foreground="{StaticResource SecondaryTextBrush}"
+                       Text="Hold this key to record, release to transcribe. Click the button below and press a key to change it." />
+            <views:HotkeyRecorderControl x:Name="Hotkey" HorizontalAlignment="Left" />
 
             <!-- Provider -->
-            <TextBlock Text="Provider" FontWeight="SemiBold" Margin="0,0,0,6" />
-            <ComboBox x:Name="ProviderCombo" Width="280" HorizontalAlignment="Left"
-                      SelectionChanged="OnProviderChanged">
-                <ComboBoxItem Content="Orate Cloud" />
-                <ComboBoxItem Content="Google AI Studio" />
-                <ComboBoxItem Content="Vertex AI" />
-            </ComboBox>
+            <TextBlock Text="AI Provider" FontWeight="SemiBold" FontSize="15" Margin="0,28,0,6" />
+            <TextBlock Margin="0,0,0,10" FontSize="13" Foreground="{StaticResource SecondaryTextBrush}"
+                       Text="Choose where to send your audio for transcription." />
+            <Border Background="{StaticResource FieldBrush}" BorderBrush="{StaticResource CardBorderBrush}"
+                    BorderThickness="1" CornerRadius="8" Padding="2" HorizontalAlignment="Left">
+                <StackPanel Orientation="Horizontal">
+                    <RadioButton x:Name="ProviderOrate" Style="{StaticResource Segment}" GroupName="Provider"
+                                 Content="Orate Cloud" Checked="OnProviderChanged" />
+                    <RadioButton x:Name="ProviderGoogle" Style="{StaticResource Segment}" GroupName="Provider"
+                                 Content="Google AI Studio" Checked="OnProviderChanged" />
+                    <RadioButton x:Name="ProviderVertex" Style="{StaticResource Segment}" GroupName="Provider"
+                                 Content="Vertex AI" Checked="OnProviderChanged" />
+                </StackPanel>
+            </Border>
 
             <!-- API key -->
-            <TextBlock Text="API Key" FontWeight="SemiBold" Margin="0,24,0,6" />
+            <TextBlock x:Name="ApiKeyHeader" Text="API Key" FontWeight="SemiBold" FontSize="15" Margin="0,28,0,6" />
+            <TextBlock x:Name="ApiKeyHint" Margin="0,0,0,10" TextWrapping="Wrap" FontSize="13"
+                       Foreground="{StaticResource SecondaryTextBrush}" />
 
             <!-- Saved state: key is hidden; offer to change it -->
             <StackPanel x:Name="KeySavedPanel" Orientation="Horizontal" Visibility="Collapsed">
@@ -53,33 +73,22 @@
             <!-- Vertex extra config -->
             <StackPanel x:Name="VertexPanel" Visibility="Collapsed" Margin="0,20,0,0">
                 <TextBlock Text="Vertex Project ID" FontWeight="SemiBold" Margin="0,0,0,6" />
-                <TextBox x:Name="VertexProject" Width="360" Padding="6" HorizontalAlignment="Left"
+                <TextBox x:Name="VertexProject" Width="360" Padding="10,7" HorizontalAlignment="Left"
                          LostFocus="OnVertexChanged" />
                 <TextBlock Text="Vertex Region" FontWeight="SemiBold" Margin="0,14,0,6" />
-                <TextBox x:Name="VertexRegion" Width="280" Padding="6" HorizontalAlignment="Left"
+                <TextBox x:Name="VertexRegion" Width="280" Padding="10,7" HorizontalAlignment="Left"
                          LostFocus="OnVertexChanged" />
             </StackPanel>
 
-            <!-- Push-to-talk -->
-            <TextBlock Text="Push-to-talk Key" FontWeight="SemiBold" Margin="0,28,0,6" />
-            <views:HotkeyRecorderControl x:Name="Hotkey" />
-
-            <!-- Custom instructions -->
-            <TextBlock Text="Custom Instructions" FontWeight="SemiBold" Margin="0,28,0,6" />
-            <TextBox x:Name="CustomInstructions" Height="100" Padding="6"
-                     TextWrapping="Wrap" AcceptsReturn="True"
-                     VerticalScrollBarVisibility="Auto"
-                     LostFocus="OnInstructionsChanged" />
-
             <!-- Diagnostics -->
-            <TextBlock Text="Diagnostics" FontWeight="SemiBold" Margin="0,28,0,6" />
+            <TextBlock Text="Diagnostics" FontWeight="SemiBold" FontSize="15" Margin="0,28,0,10" />
             <StackPanel Orientation="Horizontal">
                 <Button Content="Open Log" Padding="14,8" Click="OnOpenLog" />
                 <Button Content="Open Log Folder" Padding="14,8" Margin="10,0,0,0" Click="OnOpenLogFolder" />
             </StackPanel>
 
             <!-- About / updates -->
-            <TextBlock Text="About" FontWeight="SemiBold" Margin="0,28,0,6" />
+            <TextBlock Text="About" FontWeight="SemiBold" FontSize="15" Margin="0,28,0,10" />
             <StackPanel Orientation="Horizontal">
                 <TextBlock x:Name="VersionLabel" Foreground="{StaticResource SecondaryTextBrush}"
                            VerticalAlignment="Center" />

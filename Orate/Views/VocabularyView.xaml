@@ -1,0 +1,70 @@
+<UserControl x:Class="Orate.Views.VocabularyView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="32">
+
+            <!-- Header -->
+            <TextBlock Text="Vocabulary" FontSize="34" FontWeight="Bold" />
+            <TextBlock Margin="0,8,0,24" FontSize="16" TextWrapping="Wrap"
+                       Foreground="{StaticResource SecondaryTextBrush}"
+                       Text="Add custom words so Orate spells them correctly — names, brands, technical terms, or anything unique to you." />
+
+            <!-- Add word -->
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBox x:Name="NewWord" Grid.Column="0" Padding="10,8" FontSize="14"
+                         KeyDown="OnNewWordKeyDown" />
+                <Button x:Name="AddButton" Grid.Column="1" Content="Add" Margin="12,0,0,0"
+                        Padding="18,8" Style="{StaticResource AccentButton}" Click="OnAdd" />
+            </Grid>
+
+            <!-- Empty state -->
+            <StackPanel x:Name="EmptyState" Margin="0,48,0,0" Visibility="Collapsed">
+                <TextBlock Text="&#xE82D;" FontFamily="Segoe MDL2 Assets" FontSize="36"
+                           Foreground="{StaticResource TertiaryTextBrush}" HorizontalAlignment="Center" />
+                <TextBlock Text="No custom words yet" FontSize="15" FontWeight="SemiBold"
+                           Margin="0,12,0,0" Foreground="{StaticResource SecondaryTextBrush}"
+                           HorizontalAlignment="Center" />
+                <TextBlock Text="Add words that Orate should recognize and spell correctly."
+                           HorizontalAlignment="Center" Margin="0,4,0,0"
+                           Foreground="{StaticResource TertiaryTextBrush}" FontSize="13" />
+            </StackPanel>
+
+            <!-- Words -->
+            <StackPanel x:Name="WordsSection" Margin="0,24,0,0">
+                <Grid Margin="0,0,0,12">
+                    <TextBlock Text="Custom Words" FontSize="15" FontWeight="SemiBold"
+                               Foreground="{StaticResource SecondaryTextBrush}" />
+                    <TextBlock x:Name="CountLabel" HorizontalAlignment="Right" FontSize="12"
+                               Foreground="{StaticResource TertiaryTextBrush}" />
+                </Grid>
+
+                <ItemsControl x:Name="Words">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="{StaticResource CardBrush}" BorderBrush="{StaticResource CardBorderBrush}"
+                                    BorderThickness="1" CornerRadius="14" Padding="12,6" Margin="0,0,8,8">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{Binding}" FontSize="14" VerticalAlignment="Center" />
+                                    <Button Style="{StaticResource IconButton}" FontFamily="Segoe MDL2 Assets"
+                                            Content="&#xE711;" FontSize="11" Padding="3" Margin="6,0,0,0"
+                                            ToolTip="Remove" Click="OnRemove" />
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

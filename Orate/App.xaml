@@ -5,15 +5,16 @@
     <Application.Resources>
         <ResourceDictionary>
 
-            <!-- Palette (mirrors the app icon: warm near-black, cream, red dot) -->
-            <SolidColorBrush x:Key="BgBrush" Color="#1B1714" />
-            <SolidColorBrush x:Key="SidebarBrush" Color="#14100D" />
-            <SolidColorBrush x:Key="CardBrush" Color="#252019" />
-            <SolidColorBrush x:Key="CardBorderBrush" Color="#372F28" />
-            <SolidColorBrush x:Key="FieldBrush" Color="#201B16" />
-            <SolidColorBrush x:Key="TextBrush" Color="#ECE4D6" />
-            <SolidColorBrush x:Key="SecondaryTextBrush" Color="#9A9286" />
-            <SolidColorBrush x:Key="AccentBrush" Color="#E2503A" />
+            <!-- Palette (mirrors macOS dark appearance: neutral dark grays, system blue accent) -->
+            <SolidColorBrush x:Key="BgBrush" Color="#1C1C1E" />
+            <SolidColorBrush x:Key="SidebarBrush" Color="#252527" />
+            <SolidColorBrush x:Key="CardBrush" Color="#2C2C2E" />
+            <SolidColorBrush x:Key="CardBorderBrush" Color="#3A3A3C" />
+            <SolidColorBrush x:Key="FieldBrush" Color="#2C2C2E" />
+            <SolidColorBrush x:Key="TextBrush" Color="#F5F5F7" />
+            <SolidColorBrush x:Key="SecondaryTextBrush" Color="#98989E" />
+            <SolidColorBrush x:Key="TertiaryTextBrush" Color="#6E6E73" />
+            <SolidColorBrush x:Key="AccentBrush" Color="#0A84FF" />
 
             <!-- Text -->
             <Style TargetType="TextBlock">
@@ -173,7 +174,7 @@
                             </Border>
                             <ControlTemplate.Triggers>
                                 <Trigger Property="IsHighlighted" Value="True">
-                                    <Setter TargetName="b" Property="Background" Value="#33E2503A" />
+                                    <Setter TargetName="b" Property="Background" Value="#330A84FF" />
                                 </Trigger>
                             </ControlTemplate.Triggers>
                         </ControlTemplate>
@@ -195,11 +196,105 @@
                             </Border>
                             <ControlTemplate.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="b" Property="Background" Value="#16FFFFFF" />
+                                    <Setter TargetName="b" Property="Background" Value="#1AFFFFFF" />
                                 </Trigger>
                                 <Trigger Property="IsSelected" Value="True">
-                                    <Setter TargetName="b" Property="Background" Value="#33E2503A" />
-                                    <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+                                    <Setter TargetName="b" Property="Background" Value="{StaticResource AccentBrush}" />
+                                    <Setter Property="Foreground" Value="White" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- Dark context menu (Clear dropdown on Home) -->
+            <Style TargetType="ContextMenu">
+                <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ContextMenu">
+                            <Border Background="{StaticResource CardBrush}"
+                                    BorderBrush="{StaticResource CardBorderBrush}"
+                                    BorderThickness="1" CornerRadius="8" Padding="4">
+                                <StackPanel IsItemsHost="True" />
+                            </Border>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+            <Style TargetType="MenuItem">
+                <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+                <Setter Property="Padding" Value="12,7" />
+                <Setter Property="FontSize" Value="13" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="MenuItem">
+                            <Border x:Name="b" Background="Transparent" CornerRadius="6"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter ContentSource="Header" VerticalAlignment="Center" />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsHighlighted" Value="True">
+                                    <Setter TargetName="b" Property="Background" Value="#330A84FF" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+            <Style TargetType="Separator">
+                <Setter Property="Background" Value="{StaticResource CardBorderBrush}" />
+                <Setter Property="Margin" Value="6,4" />
+                <Setter Property="Height" Value="1" />
+            </Style>
+
+            <!-- Plain icon button (transparent, subtle hover) — matches macOS .buttonStyle(.plain) -->
+            <Style x:Key="IconButton" TargetType="Button">
+                <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}" />
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="Padding" Value="6" />
+                <Setter Property="FontSize" Value="14" />
+                <Setter Property="Cursor" Value="Hand" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="b" Background="Transparent" CornerRadius="6"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="b" Property="Background" Value="#1AFFFFFF" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- Segmented control item (RadioButton) — mirrors macOS .pickerStyle(.segmented) -->
+            <Style x:Key="Segment" TargetType="RadioButton">
+                <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}" />
+                <Setter Property="Padding" Value="16,7" />
+                <Setter Property="FontSize" Value="13" />
+                <Setter Property="Cursor" Value="Hand" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="RadioButton">
+                            <Border x:Name="b" Background="Transparent" CornerRadius="6"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="b" Property="Background" Value="#14FFFFFF" />
+                                </Trigger>
+                                <Trigger Property="IsChecked" Value="True">
+                                    <Setter TargetName="b" Property="Background" Value="{StaticResource AccentBrush}" />
+                                    <Setter Property="Foreground" Value="White" />
+                                    <Setter Property="FontWeight" Value="SemiBold" />
                                 </Trigger>
                             </ControlTemplate.Triggers>
                         </ControlTemplate>

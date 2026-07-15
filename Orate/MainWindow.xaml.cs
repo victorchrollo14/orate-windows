@@ -17,8 +17,9 @@ public partial class MainWindow : Window
     {
         Detail.Content = Nav.SelectedIndex switch
         {
-            1 => new HistoryView(),
-            2 => new SettingsView(),
+            1 => new InstructionsView(),
+            2 => new VocabularyView(),
+            3 => new SettingsView(),
             _ => new HomeView(),
         };
     }
@@ -36,6 +37,6 @@ public partial class MainWindow : Window
 
     public void NavigateToSettings()
     {
-        Nav.SelectedIndex = 2;
+        Nav.SelectedIndex = 3;
     }
 }

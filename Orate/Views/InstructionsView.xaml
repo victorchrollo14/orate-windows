@@ -1,0 +1,52 @@
+<UserControl x:Class="Orate.Views.InstructionsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <UserControl.Resources>
+        <!-- Tappable example row -->
+        <Style x:Key="ExampleRow" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource CardBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource CardBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="12" />
+            <Setter Property="Margin" Value="0,0,0,8" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#3A3A3C" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="32">
+
+            <!-- Header -->
+            <TextBlock Text="Custom Instructions" FontSize="34" FontWeight="Bold" />
+            <TextBlock Margin="0,8,0,24" FontSize="16" TextWrapping="Wrap"
+                       Foreground="{StaticResource SecondaryTextBrush}"
+                       Text="Tell Orate about yourself and how you'd like your transcriptions formatted. These instructions are included with every transcription request." />
+
+            <!-- Editor -->
+            <TextBox x:Name="Editor" MinHeight="180" Padding="12"
+                     TextWrapping="Wrap" AcceptsReturn="True" FontSize="14"
+                     VerticalScrollBarVisibility="Auto" VerticalContentAlignment="Top" />
+
+            <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                <Button Content="Save" Style="{StaticResource AccentButton}" Padding="18,8" Click="OnSave" />
+                <TextBlock x:Name="SavedLabel" Text="✓ Saved" Foreground="#30D158" FontSize="13"
+                           VerticalAlignment="Center" Margin="12,0,0,0" Visibility="Collapsed" />
+                <Button x:Name="ClearButton" Content="Clear" Margin="12,0,0,0" Click="OnClear"
+                        Visibility="Collapsed" />
+            </StackPanel>
+
+            <!-- Examples -->
+            <TextBlock Text="Examples" FontSize="15" FontWeight="SemiBold" Margin="0,28,0,12"
+                       Foreground="{StaticResource SecondaryTextBrush}" />
+
+            <StackPanel x:Name="Examples" />
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

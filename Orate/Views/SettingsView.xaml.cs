@@ -39,22 +39,40 @@ public partial class SettingsView : UserControl
         _ => "orateCloudAPIKey",
     };
 
-    private AIProvider SelectedProvider => (AIProvider)Math.Max(0, ProviderCombo.SelectedIndex);
+    private AIProvider SelectedProvider =>
+        ProviderGoogle.IsChecked == true ? AIProvider.GoogleAI :
+        ProviderVertex.IsChecked == true ? AIProvider.VertexAI :
+        AIProvider.OrateCloud;
 
     private void LoadFromSettings()
     {
         _loading = true;
         var s = SettingsStore.Current;
 
-        ProviderCombo.SelectedIndex = (int)s.Provider;
+        ProviderOrate.IsChecked = s.Provider == AIProvider.OrateCloud;
+        ProviderGoogle.IsChecked = s.Provider == AIProvider.GoogleAI;
+        ProviderVertex.IsChecked = s.Provider == AIProvider.VertexAI;
+
         VertexProject.Text = s.VertexProjectId ?? "";
         VertexRegion.Text = s.VertexRegion;
-        CustomInstructions.Text = s.CustomInstructions;
         VertexPanel.Visibility = s.Provider == AIProvider.VertexAI ? Visibility.Visible : Visibility.Collapsed;
 
         _editingKey = false;
+        UpdateApiKeyLabels(s.Provider);
         RefreshKeyUi();
         _loading = false;
+    }
+
+    private void UpdateApiKeyLabels(AIProvider provider)
+    {
+        ApiKeyHeader.Text = $"{provider.DisplayName()} API Key";
+        ApiKeyHint.Text = provider switch
+        {
+            AIProvider.OrateCloud => "Orate Cloud is the easiest way to get started. Enter your API key below to start transcribing.",
+            AIProvider.GoogleAI => "Orate uses Google's Gemini API to transcribe your audio. You'll need an API key from Google AI Studio.",
+            AIProvider.VertexAI => "Use Vertex AI through your Google Cloud project. You'll need an API key from the GCP console with Vertex AI access.",
+            _ => "",
+        };
     }
 
     /// <summary>Shows the "saved" chip when a key exists, otherwise the entry field. Never
@@ -76,7 +94,7 @@ public partial class SettingsView : UserControl
         }
     }
 
-    private void OnProviderChanged(object sender, SelectionChangedEventArgs e)
+    private void OnProviderChanged(object sender, RoutedEventArgs e)
     {
         if (_loading) return;
 
@@ -89,6 +107,7 @@ public partial class SettingsView : UserControl
         KeyBox.Password = "";
         KeyBoxPlain.Text = "";
         KeyStatus.Text = "";
+        UpdateApiKeyLabels(provider);
         RefreshKeyUi();
     }
 
@@ -148,12 +167,6 @@ public partial class SettingsView : UserControl
     {
         SettingsStore.Current.VertexProjectId = VertexProject.Text.Trim();
         SettingsStore.Current.VertexRegion = string.IsNullOrWhiteSpace(VertexRegion.Text) ? "us-central1" : VertexRegion.Text.Trim();
-        SettingsStore.Save();
-    }
-
-    private void OnInstructionsChanged(object sender, RoutedEventArgs e)
-    {
-        SettingsStore.Current.CustomInstructions = CustomInstructions.Text;
         SettingsStore.Save();
     }
 
