@@ -40,10 +40,9 @@ public partial class App : Application
 
     // Update state, surfaced to the Settings screen.
     private UpdateManager? _updateManager;
-    private UpdateInfo? _pendingUpdate;
+    private bool _updateInProgress;
     public static App Instance => (App)Current;
     public string CurrentVersionDisplay { get; private set; } = "portable build";
-    public bool IsUpdateReady => _pendingUpdate != null;
     public event Action? UpdateStateChanged;
 
     private const string RepoUrl = "https://github.com/victorchrollo14/orate-windows";
@@ -104,56 +103,120 @@ public partial class App : Application
 
         ShowMainWindow(); // open on first launch so the user can configure
 
-        _ = CheckForUpdatesAsync(); // silent background update check (installed builds only)
+        InitVersionDisplay(); // show the installed version in Settings (no network, no auto-update)
     }
 
-    private async Task CheckForUpdatesAsync()
+    /// <summary>Reads the installed version for display. No network call, no auto-download.</summary>
+    private void InitVersionDisplay()
     {
         try
         {
-            _updateManager = new UpdateManager(new GithubSource(RepoUrl, null, prerelease: false));
-            if (!_updateManager.IsInstalled)
+            var mgr = GetUpdateManager();
+            if (mgr.IsInstalled && mgr.CurrentVersion != null)
             {
-                Logger.Log("Update: not a Velopack install (portable build) — skipping.");
-                return;
+                CurrentVersionDisplay = mgr.CurrentVersion.ToString();
+                UpdateStateChanged?.Invoke();
             }
-
-            CurrentVersionDisplay = _updateManager.CurrentVersion?.ToString() ?? "unknown";
-            UpdateStateChanged?.Invoke();
-
-            var info = await _updateManager.CheckForUpdatesAsync();
-            if (info == null)
-            {
-                Logger.Log($"Update: already up to date (v{CurrentVersionDisplay}).");
-                return;
-            }
-
-            Logger.Log($"Update: downloading {info.TargetFullRelease.Version}…");
-            await _updateManager.DownloadUpdatesAsync(info);
-
-            _pendingUpdate = info;
-            Logger.Log($"Update: {info.TargetFullRelease.Version} downloaded; ready to apply.");
-            UpdateStateChanged?.Invoke();
-            _tray?.ShowBalloonTip(
-                6000,
-                "Update ready",
-                $"Orate {info.TargetFullRelease.Version} installs when you quit — or use “Restart to update” in Settings.",
-                Forms.ToolTipIcon.Info);
         }
         catch (Exception ex)
         {
-            Logger.Log("Update check failed", ex);
+            Logger.Log("Update: version init failed", ex);
         }
     }
 
-    /// <summary>Applies a downloaded update immediately and relaunches. Called from Settings.</summary>
-    public void RestartToApplyUpdate()
+    private UpdateManager GetUpdateManager() =>
+        _updateManager ??= new UpdateManager(new GithubSource(RepoUrl, null, prerelease: false));
+
+    /// <summary>
+    /// User-initiated update check (tray menu / Settings), mirroring the macOS
+    /// "Check for Updates…" flow: check, then prompt before downloading & restarting.
+    /// </summary>
+    public async Task CheckForUpdatesInteractiveAsync()
     {
-        if (_updateManager == null || _pendingUpdate == null) return;
-        if (_mainWindow != null) _mainWindow.AllowClose = true;
-        Logger.Log("Update: applying and restarting at user request.");
-        _updateManager.ApplyUpdatesAndRestart(_pendingUpdate.TargetFullRelease);
+        if (_updateInProgress) return;
+        _updateInProgress = true;
+        try
+        {
+            UpdateManager mgr;
+            try
+            {
+                mgr = GetUpdateManager();
+            }
+            catch (Exception ex)
+            {
+                Logger.Log("Update: manager init failed", ex);
+                ShowUpdateInfo("Couldn't check for updates right now. Please try again later.",
+                    MessageBoxImage.Warning);
+                return;
+            }
+
+            if (!mgr.IsInstalled)
+            {
+                ShowUpdateInfo(
+                    "Updates are only available in the installed version of Orate.\n\n"
+                    + "Download the latest Setup.exe from the GitHub Releases page to update.",
+                    MessageBoxImage.Information);
+                return;
+            }
+
+            CurrentVersionDisplay = mgr.CurrentVersion?.ToString() ?? "unknown";
+            UpdateStateChanged?.Invoke();
+
+            UpdateInfo? info;
+            try
+            {
+                info = await mgr.CheckForUpdatesAsync();
+            }
+            catch (Exception ex)
+            {
+                Logger.Log("Update: check failed", ex);
+                ShowUpdateInfo("Couldn't reach the update server. Check your connection and try again.",
+                    MessageBoxImage.Warning);
+                return;
+            }
+
+            if (info == null)
+            {
+                Logger.Log($"Update: already up to date (v{CurrentVersionDisplay}).");
+                ShowUpdateInfo($"You're up to date.\n\nOrate {CurrentVersionDisplay} is the latest version.",
+                    MessageBoxImage.Information);
+                return;
+            }
+
+            var newVersion = info.TargetFullRelease.Version;
+            var choice = MessageBox.Show(
+                $"Orate {newVersion} is available — you have {CurrentVersionDisplay}.\n\n"
+                + "Download and install it now? Orate will restart to finish.",
+                "Update Available", MessageBoxButton.OKCancel, MessageBoxImage.Information);
+            if (choice != MessageBoxResult.OK)
+            {
+                Logger.Log($"Update: {newVersion} available; user postponed.");
+                return;
+            }
+
+            try
+            {
+                Logger.Log($"Update: downloading {newVersion} (user-initiated)…");
+                await mgr.DownloadUpdatesAsync(info);
+                if (_mainWindow != null) _mainWindow.AllowClose = true;
+                Logger.Log("Update: applying and restarting.");
+                mgr.ApplyUpdatesAndRestart(info.TargetFullRelease);
+            }
+            catch (Exception ex)
+            {
+                Logger.Log("Update: download/apply failed", ex);
+                ShowUpdateInfo("The update couldn't be installed. Please try again later.",
+                    MessageBoxImage.Warning);
+            }
+        }
+        finally
+        {
+            _updateInProgress = false;
+        }
     }
+
+    private static void ShowUpdateInfo(string text, MessageBoxImage icon) =>
+        MessageBox.Show(text, "Orate", MessageBoxButton.OK, icon);
 
     // MARK: - Pipeline
 
@@ -273,6 +336,8 @@ public partial class App : Application
             _mainWindow?.NavigateToSettings();
         });
         menu.Items.Add(new Forms.ToolStripSeparator());
+        menu.Items.Add("Check for Updates…", null, async (_, _) => await CheckForUpdatesInteractiveAsync());
+        menu.Items.Add(new Forms.ToolStripSeparator());
         menu.Items.Add("Quit", null, (_, _) => QuitApp());
 
         _tray = new Forms.NotifyIcon
@@ -316,22 +381,6 @@ public partial class App : Application
     private void QuitApp()
     {
         if (_mainWindow != null) _mainWindow.AllowClose = true;
-
-        // If an update is staged, install it on the way out (no restart — just exit updated).
-        if (_updateManager != null && _pendingUpdate != null)
-        {
-            try
-            {
-                Logger.Log("Update: applying on quit.");
-                _updateManager.ApplyUpdatesAndExit(_pendingUpdate.TargetFullRelease);
-                return;
-            }
-            catch (Exception ex)
-            {
-                Logger.Log("Update: apply-on-quit failed", ex);
-            }
-        }
-
         Shutdown();
     }
 

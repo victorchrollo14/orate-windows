@@ -26,10 +26,23 @@ public partial class SettingsView : UserControl
     private void RefreshAbout()
     {
         VersionLabel.Text = $"Orate {App.Instance.CurrentVersionDisplay}";
-        UpdateButton.Visibility = App.Instance.IsUpdateReady ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    private void OnRestartToUpdate(object sender, RoutedEventArgs e) => App.Instance.RestartToApplyUpdate();
+    private async void OnCheckForUpdates(object sender, RoutedEventArgs e)
+    {
+        UpdateButton.IsEnabled = false;
+        var prev = UpdateButton.Content;
+        UpdateButton.Content = "Checking…";
+        try
+        {
+            await App.Instance.CheckForUpdatesInteractiveAsync();
+        }
+        finally
+        {
+            UpdateButton.Content = prev;
+            UpdateButton.IsEnabled = true;
+        }
+    }
 
     private static string CredentialKey(AIProvider p) => p switch
     {
