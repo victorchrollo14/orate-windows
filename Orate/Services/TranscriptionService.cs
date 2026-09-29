@@ -26,7 +26,7 @@ public static class TranscriptionService
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(60) };
 
     private const string OrateCloudBaseUrl = "https://orate-api.lavisht22.workers.dev";
-    public const string Model = "gemini-3.1-flash-lite-preview";
+    public const string Model = "gemini-3.5-flash-lite";
 
     private const string SystemPrompt =
         """
