@@ -38,6 +38,9 @@ public sealed class Settings
     public int PushToTalkVk { get; set; } = 0xA5;
 
     public bool HasCompletedOnboarding { get; set; }
+
+    /// <summary>Set once the user agrees to the first-run privacy notice (required by the code-signing policy).</summary>
+    public bool HasAcceptedPrivacyNotice { get; set; }
 }
 
 /// <summary>Loads/persists <see cref="Settings"/> at %APPDATA%\Orate\settings.json.</summary>

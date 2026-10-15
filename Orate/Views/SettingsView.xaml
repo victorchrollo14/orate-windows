@@ -94,6 +94,7 @@
                            VerticalAlignment="Center" />
                 <Button x:Name="UpdateButton" Content="Check for Updates" Margin="14,0,0,0"
                         Click="OnCheckForUpdates" Style="{StaticResource AccentButton}" />
+                <Button Content="Privacy Policy" Margin="10,0,0,0" Click="OnOpenPrivacyPolicy" />
             </StackPanel>
 
         </StackPanel>

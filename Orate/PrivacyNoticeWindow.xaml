@@ -1,0 +1,50 @@
+<Window x:Class="Orate.PrivacyNoticeWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Orate — Privacy" Width="560" SizeToContent="Height"
+        ResizeMode="NoResize"
+        Background="{StaticResource BgBrush}"
+        Icon="/Assets/orate.ico"
+        WindowStartupLocation="CenterScreen">
+    <StackPanel Margin="28,24,28,24">
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+            <Image Source="/Assets/orate.ico" Width="26" Height="26" />
+            <TextBlock Text="Before you start" FontSize="18" FontWeight="SemiBold"
+                       VerticalAlignment="Center" Margin="10,0,0,0" />
+        </StackPanel>
+
+        <TextBlock TextWrapping="Wrap" FontSize="13" LineHeight="20">
+            Orate records your microphone only while you hold the push-to-talk key. When you
+            release it, the recording, together with your custom instructions and vocabulary,
+            is sent to the transcription provider you choose in Settings:
+        </TextBlock>
+
+        <Border Background="{StaticResource CardBrush}" BorderBrush="{StaticResource CardBorderBrush}"
+                BorderThickness="1" CornerRadius="8" Padding="14,10" Margin="0,12,0,12">
+            <StackPanel>
+                <TextBlock TextWrapping="Wrap" FontSize="13" LineHeight="20">
+                    <Run FontWeight="SemiBold" Text="Orate Cloud (default)" /><Run Text=" relays it to Google Gemini on Vertex AI. It keeps only a word count per API key, not your audio or transcripts." />
+                </TextBlock>
+                <TextBlock TextWrapping="Wrap" FontSize="13" LineHeight="20" Margin="0,8,0,0">
+                    <Run FontWeight="SemiBold" Text="Google AI Studio / Vertex AI" /><Run Text=" sends it directly to Google with your own API key." />
+                </TextBlock>
+            </StackPanel>
+        </Border>
+
+        <TextBlock TextWrapping="Wrap" FontSize="13" LineHeight="20"
+                   Foreground="{StaticResource SecondaryTextBrush}">
+            Your recordings, transcripts, settings and logs stay on this PC. Orate contacts GitHub
+            only when you click Check for Updates. There is no analytics or telemetry.
+        </TextBlock>
+
+        <TextBlock Margin="0,12,0,0" FontSize="13">
+            <Hyperlink Click="OnOpenPolicy" Foreground="{StaticResource AccentBrush}">Read the full privacy policy</Hyperlink>
+        </TextBlock>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,24,0,0">
+            <Button Content="Quit" Click="OnDecline" IsCancel="True" />
+            <Button Content="Agree and Continue" Margin="10,0,0,0" Click="OnAccept"
+                    IsDefault="True" Style="{StaticResource AccentButton}" />
+        </StackPanel>
+    </StackPanel>
+</Window>

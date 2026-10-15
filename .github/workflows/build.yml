@@ -12,11 +12,15 @@ concurrency:
 
 permissions:
   contents: write # create releases / upload installer assets
+  actions: read # SignPath reads the job details and the uploaded artifacts
 
 env:
   PROJECT: Orate/Orate.csproj
   RUNTIME: win-x64
   REPO_URL: https://github.com/victorchrollo14/orate-windows
+  # Code signing via SignPath Foundation (see README → Code signing policy). Signing runs only
+  # once the SIGNPATH_* repository variables are set; until then releases are built unsigned.
+  SIGNING_ENABLED: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
 
 jobs:
   release:
@@ -53,7 +57,46 @@ jobs:
           -r ${{ env.RUNTIME }}
           --self-contained true
           -p:DebugType=none
+          -p:Version=${{ steps.ver.outputs.version }}
           -o publish
+
+      # --- Sign our own binaries (Orate.exe apphost + Orate.dll) before they're packed. ---
+      # SignPath waits for a manual approval, so the timeout leaves an hour to approve.
+      - name: Stage app binaries for signing
+        if: env.SIGNING_ENABLED == 'true'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force sign-app | Out-Null
+          Copy-Item publish/Orate.exe, publish/Orate.dll sign-app/
+
+      - name: Upload unsigned app binaries
+        id: upload-unsigned-app
+        if: env.SIGNING_ENABLED == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-app
+          path: sign-app/
+
+      - name: Sign app binaries (SignPath)
+        if: env.SIGNING_ENABLED == 'true'
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          artifact-configuration-slug: app
+          github-artifact-id: ${{ steps.upload-unsigned-app.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 3600
+          output-artifact-directory: signed-app
+          parameters: |
+            version: "${{ steps.ver.outputs.version }}"
+
+      - name: Replace app binaries with signed copies
+        if: env.SIGNING_ENABLED == 'true'
+        shell: pwsh
+        run: Copy-Item signed-app/* publish/ -Force
 
       # Pull the previous release so vpk can build a small delta update. The very first
       # release has nothing to download, so don't fail the job on that.
@@ -70,6 +113,34 @@ jobs:
           --mainExe Orate.exe
           --packTitle Orate
           --icon Orate/Assets/orate.ico
+
+      # --- Sign Setup.exe — the file users download, and the one SmartScreen checks. ---
+      - name: Upload unsigned installer
+        id: upload-unsigned-installer
+        if: env.SIGNING_ENABLED == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-installer
+          path: Releases/Orate-win-Setup.exe
+
+      - name: Sign installer (SignPath)
+        if: env.SIGNING_ENABLED == 'true'
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          artifact-configuration-slug: installer
+          github-artifact-id: ${{ steps.upload-unsigned-installer.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 3600
+          output-artifact-directory: signed-installer
+
+      - name: Replace installer with signed copy
+        if: env.SIGNING_ENABLED == 'true'
+        shell: pwsh
+        run: Copy-Item signed-installer/Orate-win-Setup.exe Releases/ -Force
 
       # Creates/publishes a GitHub Release (tag v<version>) with Setup.exe + update assets.
       # The app's GithubSource reads these to auto-update silently after install.
