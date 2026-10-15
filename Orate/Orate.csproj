@@ -25,7 +25,7 @@
          ProductVersion = the release version, so keep the commit hash out of ProductVersion. -->
     <Product>Orate</Product>
     <Description>Orate — push-to-talk voice transcription</Description>
-    <Copyright>Copyright (c) 2026 Victor (victorchrollo14). MIT License.</Copyright>
+    <Copyright>Copyright (c) 2026 Victor B. MIT License.</Copyright>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
   </PropertyGroup>
 
