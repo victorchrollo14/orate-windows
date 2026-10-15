@@ -202,6 +202,8 @@ public partial class SettingsView : UserControl
         }
     }
 
+    private void OnOpenPrivacyPolicy(object sender, RoutedEventArgs e) => PrivacyNoticeWindow.OpenPolicy();
+
     private void OnOpenLogFolder(object sender, RoutedEventArgs e)
     {
         try

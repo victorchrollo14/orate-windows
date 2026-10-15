@@ -82,6 +82,20 @@ public partial class App : Application
             args.Handled = true;
         };
 
+        // First run: show the privacy notice before the hook/recorder exist, so nothing can be
+        // recorded or sent until the user agrees. Closing the window counts as declining.
+        if (!SettingsStore.Current.HasAcceptedPrivacyNotice)
+        {
+            if (new PrivacyNoticeWindow().ShowDialog() != true)
+            {
+                Logger.Log("Privacy notice declined; quitting.");
+                Shutdown();
+                return;
+            }
+            SettingsStore.Current.HasAcceptedPrivacyNotice = true;
+            SettingsStore.Save();
+        }
+
         StartShowWindowListener();
 
         _overlay = new OverlayWindow();

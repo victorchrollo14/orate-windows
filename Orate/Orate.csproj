@@ -18,7 +18,15 @@
     <RootNamespace>Orate</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\orate.ico</ApplicationIcon>
+    <!-- Local builds only; CI passes -p:Version=1.0.<run> so the binaries match the release. -->
     <Version>0.1.0</Version>
+
+    <!-- PE metadata. SignPath's artifact configuration requires ProductName = "Orate" and
+         ProductVersion = the release version, so keep the commit hash out of ProductVersion. -->
+    <Product>Orate</Product>
+    <Description>Orate — push-to-talk voice transcription</Description>
+    <Copyright>Copyright (c) 2026 Victor (victorchrollo14). MIT License.</Copyright>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
   </PropertyGroup>
 
   <!-- App icon, available at runtime for the tray NotifyIcon and window chrome. -->
