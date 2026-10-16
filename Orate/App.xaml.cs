@@ -35,6 +35,7 @@ public partial class App : Application
     private MainWindow? _mainWindow;
 
     private CancellationTokenSource? _cts;
+    private Task<bool>? _startRecording; // set while push-to-talk is held
     private bool _ownsMutex;
     public string? LastTranscription { get; private set; }
 
@@ -236,16 +237,27 @@ public partial class App : Application
 
     private void OnPushToTalkDown()
     {
-        if (_overlay.IsTranscribing) return; // ignore while a transcription is in flight
+        if (_overlay.IsTranscribing || _startRecording != null) return; // ignore while busy
         _overlay.SetListening(true);
-        // Open the mic on a background thread — waveInOpen can block ~500ms on the first
-        // record, which would otherwise freeze the just-shown waveform into a static rectangle.
-        Task.Run(_recorder.StartRecording);
+        // Open the mic on a background thread — opening the device can block ~500ms on the
+        // first record, which would otherwise freeze the just-shown waveform into a static rectangle.
+        _startRecording = Task.Run(_recorder.StartRecording);
     }
 
-    private void OnPushToTalkUp()
+    private async void OnPushToTalkUp()
     {
-        if (!_recorder.IsRecording) return;
+        var start = _startRecording;
+        if (start == null) return;
+        _startRecording = null;
+
+        // Wait for the mic to finish opening (a quick tap can release before it has), so we never
+        // stop a half-opened recorder. If it couldn't open, leave listening via the error pill
+        // instead of leaving the waveform up forever.
+        if (!await start)
+        {
+            _overlay.ShowError();
+            return;
+        }
         // Don't drop to idle here — FinishRecording transitions waveform → loading directly,
         // so the pill never flashes its tiny idle state in between.
         FinishRecording();

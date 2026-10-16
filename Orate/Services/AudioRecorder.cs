@@ -1,36 +1,50 @@
 using System.IO;
+using NAudio.CoreAudioApi;
 using NAudio.MediaFoundation;
 using NAudio.Wave;
+using NAudio.Wave.SampleProviders;
 
 namespace Orate.Services;
 
 /// <summary>
-/// Records the microphone to 16 kHz mono PCM and, on stop, encodes it to FLAC using the
-/// Media Foundation FLAC encoder built into Windows 10/11 (no extra dependency). The Windows
-/// analog of macOS AudioRecorder. Raises <see cref="OnLevel"/> with a normalized 0…1 level
-/// for the overlay waveform (on the capture thread — marshal to UI in the handler).
+/// Records the microphone and, on stop, produces 16 kHz mono FLAC using the Media Foundation
+/// FLAC encoder built into Windows 10/11 (no extra dependency). The Windows analog of macOS
+/// AudioRecorder. Raises <see cref="OnLevel"/> with a normalized 0…1 level for the overlay
+/// waveform (on the capture thread — marshal to UI in the handler).
+///
+/// Capture uses WASAPI in the device's own mix format (e.g. 48 kHz float stereo), downmixes to
+/// mono and resamples to 16 kHz on stop. Asking the legacy waveIn API for 16 kHz directly fails
+/// with "InvalidParameter calling waveInOpen" on some drivers, so waveIn (through the Windows
+/// format mapper) is only a fallback for when WASAPI can't start.
 /// </summary>
 public sealed class AudioRecorder
 {
     // FLAC media subtype GUID (format tag 0xF1AC). Matches what the Cloudflare Worker expects.
     private static readonly Guid MFAudioFormat_FLAC = new("0000F1AC-0000-0010-8000-00AA00389B71");
 
-    // NAudio WaveFormat(rate, bits, channels): 16 kHz, 16-bit, mono. Positional to avoid
-    // depending on the parameter names.
+    // KSDATAFORMAT_SUBTYPE_IEEE_FLOAT — the usual WASAPI mix format subtype.
+    private static readonly Guid SubtypeIeeeFloat = new("00000003-0000-0010-8000-00AA00389B71");
+
+    // What we send: 16 kHz, 16-bit, mono. Positional to avoid depending on parameter names.
     private static readonly WaveFormat RecordingFormat = new(16000, 16, 1);
 
-    private WaveInEvent? _waveIn;
-    private MemoryStream? _pcmBuffer;
+    private const int WaveMapper = -1; // WAVE_MAPPER: lets Windows convert to the requested format
+
+    private readonly object _gate = new();
+    private IWaveIn? _capture;
+    private WaveFormat _captureFormat = RecordingFormat;
+    private bool _captureIsFloat;
+    private List<float> _samples = new(); // mono, at _captureFormat.SampleRate
     private int _dataCallbacks;
 
-    /// <summary>Called with a normalized audio level (0…1) at roughly 30 fps.</summary>
+    /// <summary>Called with a normalized audio level (0…1) for each captured buffer.</summary>
     public Action<double>? OnLevel;
 
-    public bool IsRecording => _waveIn != null;
+    public bool IsRecording => _capture != null;
 
     /// <summary>
     /// Logs whether the Windows Media Foundation FLAC encoder is present, without needing a
-    /// recording. Call once at startup — if this logs 0 codecs, that's the whole problem
+    /// recording. Call once at startup — if this logs 0 types, that's the whole problem
     /// (typical on Windows N / Server editions that lack the Media Feature Pack).
     /// </summary>
     public static void LogFlacAvailability()
@@ -40,11 +54,6 @@ public sealed class AudioRecorder
             MediaFoundationApi.Startup();
             var candidates = MediaFoundationEncoder.GetOutputMediaTypes(MFAudioFormat_FLAC);
             Logger.Log($"AudioRecorder: MF FLAC encoder check — {candidates.Length} output media type(s) available.");
-            foreach (var mt in candidates)
-            {
-                if (TryGet(mt, out int sr, out int ch))
-                    Logger.Log($"  FLAC candidate: {sr} Hz, {ch} ch");
-            }
         }
         catch (Exception ex)
         {
@@ -52,56 +61,94 @@ public sealed class AudioRecorder
         }
     }
 
-    public void StartRecording()
+    /// <summary>Opens the mic and starts capturing. Returns false if no capture method worked.</summary>
+    public bool StartRecording()
     {
-        if (_waveIn != null) return;
+        if (_capture != null) return true;
 
-        _pcmBuffer = new MemoryStream();
-        _dataCallbacks = 0;
-        _waveIn = new WaveInEvent
+        lock (_gate)
         {
-            WaveFormat = RecordingFormat,
-            BufferMilliseconds = 33,   // ~30 fps metering, like the macOS meter timer
-            NumberOfBuffers = 3,
-        };
-        _waveIn.DataAvailable += OnDataAvailable;
+            _samples = new List<float>(16000 * 30);
+            _dataCallbacks = 0;
+        }
 
+        if (TryStart(CreateWasapi, "WASAPI") || TryStart(CreateWaveIn, "waveIn (format mapper)"))
+            return true;
+
+        Logger.Log("AudioRecorder: no capture method could open the microphone. Check Settings → Privacy → Microphone, and that an input device is enabled.");
+        return false;
+    }
+
+    private static IWaveIn CreateWasapi() => new WasapiCapture();
+
+    private static IWaveIn CreateWaveIn() => new WaveInEvent
+    {
+        DeviceNumber = WaveMapper,
+        WaveFormat = RecordingFormat,
+        BufferMilliseconds = 33,
+        NumberOfBuffers = 3,
+    };
+
+    private bool TryStart(Func<IWaveIn> create, string label)
+    {
+        IWaveIn? capture = null;
         try
         {
-            _waveIn.StartRecording();
-            Logger.Log("AudioRecorder: recording started (16 kHz / 16-bit / mono).");
+            capture = create();
+            _captureFormat = capture.WaveFormat;
+            _captureIsFloat = IsFloat(_captureFormat);
+            capture.DataAvailable += OnDataAvailable;
+            capture.RecordingStopped += OnRecordingStopped;
+            capture.StartRecording();
+            _capture = capture;
+            Logger.Log($"AudioRecorder: recording started via {label} ({_captureFormat.SampleRate} Hz, {_captureFormat.BitsPerSample}-bit{(_captureIsFloat ? " float" : "")}, {_captureFormat.Channels} ch).");
+            return true;
         }
         catch (Exception ex)
         {
-            Logger.Log("AudioRecorder: failed to start recording (mic permission or no device?)", ex);
-            Cleanup();
+            Logger.Log($"AudioRecorder: {label} failed to start", ex);
+            if (capture != null)
+            {
+                capture.DataAvailable -= OnDataAvailable;
+                capture.RecordingStopped -= OnRecordingStopped;
+                try { capture.Dispose(); } catch { /* ignore */ }
+            }
+            return false;
         }
     }
 
     /// <summary>Stops capture and returns FLAC-encoded audio, or null if nothing was captured.</summary>
     public byte[]? StopRecording()
     {
-        if (_waveIn == null) return null;
+        var capture = _capture;
+        if (capture == null) return null;
+        _capture = null;
 
-        _waveIn.DataAvailable -= OnDataAvailable;
-        try { _waveIn.StopRecording(); } catch { /* ignore */ }
-        _waveIn.Dispose();
-        _waveIn = null;
+        capture.DataAvailable -= OnDataAvailable;
+        capture.RecordingStopped -= OnRecordingStopped;
+        try { capture.StopRecording(); } catch { /* ignore */ }
+        try { capture.Dispose(); } catch { /* ignore */ }
 
-        var pcm = _pcmBuffer?.ToArray();
-        _pcmBuffer?.Dispose();
-        _pcmBuffer = null;
-
-        Logger.Log($"AudioRecorder: stopped — {_dataCallbacks} data callbacks, {pcm?.Length ?? 0} PCM bytes captured.");
-
-        if (pcm == null || pcm.Length == 0)
+        float[] mono;
+        int callbacks;
+        lock (_gate)
         {
-            Logger.Log("AudioRecorder: no PCM captured.");
+            mono = _samples.ToArray();
+            callbacks = _dataCallbacks;
+            _samples = new List<float>();
+        }
+
+        Logger.Log($"AudioRecorder: stopped — {callbacks} data callbacks, {mono.Length} samples at {_captureFormat.SampleRate} Hz.");
+
+        if (mono.Length == 0)
+        {
+            Logger.Log("AudioRecorder: no audio captured.");
             return null;
         }
 
         try
         {
+            var pcm = ToPcm16kMono(mono, _captureFormat.SampleRate);
             var flac = EncodeToFlac(pcm, RecordingFormat);
             Logger.Log($"AudioRecorder: FLAC encode OK — {pcm.Length} PCM bytes -> {flac.Length} FLAC bytes.");
             return flac;
@@ -113,38 +160,81 @@ public sealed class AudioRecorder
         }
     }
 
+    private void OnRecordingStopped(object? sender, StoppedEventArgs e)
+    {
+        // Only fires mid-recording if capture dies (e.g. the device was unplugged).
+        if (e.Exception != null) Logger.Log("AudioRecorder: capture stopped unexpectedly", e.Exception);
+    }
+
     private void OnDataAvailable(object? sender, WaveInEventArgs e)
     {
-        _dataCallbacks++;
-        _pcmBuffer?.Write(e.Buffer, 0, e.BytesRecorded);
+        int channels = _captureFormat.Channels;
+        int bytesPerSample = _captureFormat.BitsPerSample / 8;
+        int frameSize = bytesPerSample * channels;
+        if (frameSize == 0) return;
 
-        // Compute RMS over the 16-bit samples, convert to dB, normalize -40…0 dB -> 0…1
-        // (mirrors macOS averagePower normalization).
+        // Downmix to mono, buffer it, and compute RMS for the level meter.
         double sumSquares = 0;
-        int sampleCount = e.BytesRecorded / 2;
-        for (int i = 0; i + 1 < e.BytesRecorded; i += 2)
+        int frames = 0;
+        lock (_gate)
         {
-            short sample = (short)(e.Buffer[i] | (e.Buffer[i + 1] << 8));
-            double s = sample / 32768.0;
-            sumSquares += s * s;
+            _dataCallbacks++;
+            for (int i = 0; i + frameSize <= e.BytesRecorded; i += frameSize)
+            {
+                float sum = 0;
+                for (int c = 0; c < channels; c++)
+                    sum += ReadSample(e.Buffer, i + c * bytesPerSample, bytesPerSample);
+                float s = sum / channels;
+                _samples.Add(s);
+                sumSquares += s * s;
+                frames++;
+            }
         }
 
-        if (sampleCount > 0 && OnLevel != null)
+        // RMS -> dB, normalize -40…0 dB -> 0…1 (mirrors macOS averagePower normalization).
+        if (frames > 0 && OnLevel != null)
         {
-            double rms = Math.Sqrt(sumSquares / sampleCount);
+            double rms = Math.Sqrt(sumSquares / frames);
             double db = rms > 0 ? 20.0 * Math.Log10(rms) : -160.0;
             double clamped = Math.Max(-40.0, Math.Min(db, 0.0));
-            double normalized = (clamped + 40.0) / 40.0;
-            OnLevel(normalized);
+            OnLevel((clamped + 40.0) / 40.0);
         }
     }
 
-    private void Cleanup()
+    private float ReadSample(byte[] b, int offset, int bytesPerSample)
     {
-        _waveIn?.Dispose();
-        _waveIn = null;
-        _pcmBuffer?.Dispose();
-        _pcmBuffer = null;
+        if (_captureIsFloat) return BitConverter.ToSingle(b, offset);
+        return bytesPerSample switch
+        {
+            2 => BitConverter.ToInt16(b, offset) / 32768f,
+            3 => ((b[offset] << 8) | (b[offset + 1] << 16) | (b[offset + 2] << 24)) / 2147483648f,
+            4 => BitConverter.ToInt32(b, offset) / 2147483648f,
+            _ => 0f,
+        };
+    }
+
+    private static bool IsFloat(WaveFormat f) =>
+        f.Encoding == WaveFormatEncoding.IeeeFloat
+        || (f is WaveFormatExtensible ext && ext.SubFormat == SubtypeIeeeFloat);
+
+    /// <summary>Resamples mono float audio to 16 kHz and converts it to 16-bit PCM.</summary>
+    private static byte[] ToPcm16kMono(float[] mono, int sampleRate)
+    {
+        var floatBytes = new byte[mono.Length * sizeof(float)];
+        Buffer.BlockCopy(mono, 0, floatBytes, 0, floatBytes.Length);
+
+        ISampleProvider source = new RawSourceWaveStream(
+            new MemoryStream(floatBytes), WaveFormat.CreateIeeeFloatWaveFormat(sampleRate, 1)).ToSampleProvider();
+        if (sampleRate != RecordingFormat.SampleRate)
+            source = new WdlResamplingSampleProvider(source, RecordingFormat.SampleRate);
+
+        var pcm16 = new SampleToWaveProvider16(source);
+        using var output = new MemoryStream();
+        var buffer = new byte[RecordingFormat.AverageBytesPerSecond];
+        int read;
+        while ((read = pcm16.Read(buffer, 0, buffer.Length)) > 0)
+            output.Write(buffer, 0, read);
+        return output.ToArray();
     }
 
     // ---- FLAC encoding via Media Foundation ----
@@ -227,22 +317,6 @@ public sealed class AudioRecorder
         foreach (var mt in enumerated)
         {
             yield return ("enumerated type", mt);
-        }
-    }
-
-    private static bool TryGet(MediaType mt, out int sampleRate, out int channels)
-    {
-        try
-        {
-            sampleRate = mt.SampleRate;
-            channels = mt.ChannelCount;
-            return true;
-        }
-        catch
-        {
-            sampleRate = 0;
-            channels = 0;
-            return false;
         }
     }
 }
